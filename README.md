@@ -14,6 +14,7 @@ how to install python on a mac
       ii.   source bin/activate
       iii.  pip install docker-py
 
+IMPORTANT! do not use zshell!!!
 
 # Running
 For the moment, you need to download the docker images you want to be able to
