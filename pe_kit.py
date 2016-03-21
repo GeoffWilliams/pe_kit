@@ -93,7 +93,7 @@ class MainScreen(GridLayout):
 
   def stop_pe(self):
     if self.container_running:
-      self.cli.remove_image(container=self.DOCKER_CONTAINER, force=True)
+      self.cli.remove_container(container=self.container.get('Id'), force=True)
       self.container_running = False
 
   def get_selected_image(self):
