@@ -22,7 +22,7 @@ For the moment, you need to download the docker images you want to be able to
 run locally, eg
 
 ```
-docker pull pe_master_public_lowmem
+docker pull geoffwilliams/pe_master_public_lowmem:2015.3.3-0
 ```
 
 Once you have the image installed, you can run the GUI and work away :)
