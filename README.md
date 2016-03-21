@@ -29,6 +29,6 @@ Once you have the image installed, you can run the GUI and work away :)
 ```
 ./pe_kit.py
 ```
-**NOTE:** You must run the above command from the Docker Quickstart Shell
+**NOTE:** You must run the above command from the _Docker Quickstart Terminal_
 
 
