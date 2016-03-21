@@ -10,6 +10,7 @@ from docker.utils import kwargs_from_env
 import webbrowser
 from urlparse import urlparse
 import pprint
+from utils import Utils
 
 class MainScreen(GridLayout):
   DOCKER_CONTAINER="pe_kit__"
@@ -101,7 +102,9 @@ class MainScreen(GridLayout):
 
   def pe_terminal(self, instance):
     self.start_pe()
-
+    Utils.docker_terminal("docker exec -ti {name} bash".format(
+      name=self.DOCKER_CONTAINER,
+    ))
     self.log("TERM clicked")
 
   def pe_console(self, instance):
