@@ -1,5 +1,6 @@
 #!/usr/bin/env kivy 
 from kivy.app import App
+from kivy.clock import Clock
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.label import Label
 from kivy.uix.button import Button
@@ -12,6 +13,7 @@ import webbrowser
 from urlparse import urlparse
 import pprint
 from utils import Utils
+
 
 class MainScreen(GridLayout):
   DOCKER_CONTAINER="pe_kit__"
@@ -97,8 +99,19 @@ class MainScreen(GridLayout):
     return self.container_running
 
   def error(self, message):
-    popup = Popup(title='Error!', content=Label(text=message), size_hint=(0.8,0.5))
+    self.popup(title='Error!', message=message)
+
+  def popup(self, title, message):
+    popup = Popup(
+      title=title, 
+      content=Label(text=message), 
+      size_hint=(0.8,0.5),
+      text_size=self.size
+    )
     popup.open()
+
+  def info(self, message):
+    self.popup(title='Information', message=message)
 
   def stop_pe(self):
     if self.container_running:
@@ -110,13 +123,25 @@ class MainScreen(GridLayout):
 
   def pe_terminal(self, instance):
     if self.start_pe():
-      Utils.docker_terminal("docker exec -ti {name} bash".format(
-        name=self.DOCKER_CONTAINER,
-      ))
+      self.info("Launching terminal, please lookout for a new window")
+
+      def open_terminal(dt):
+        Utils.docker_terminal("docker exec -ti {name} bash".format(
+          name=self.DOCKER_CONTAINER,
+        ))
+      
+      # call the named callback in 2 seconds (delay without freezing)
+      Clock.schedule_once(open_terminal, 2)
 
   def pe_console(self, instance):
     if self.start_pe():
-      webbrowser.open_new(self.pe_url)
+      self.info("Launching browser, please accept the certificate and wait approximately 2 minutes.\n  When the console loads, the username is 'admin' and the password is 'aaaaaaaa'")
+
+      def open_browser(dt):
+        webbrowser.open_new(self.pe_url)
+
+      # call the named callback in 2 seconds (delay without freezing)
+      Clock.schedule_once(open_browser, 2)
 
 
   def docker_init(self):
