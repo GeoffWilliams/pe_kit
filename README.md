@@ -14,3 +14,21 @@ how to install python on a mac
       ii.   source bin/activate
       iii.  pip install docker-py
 
+
+# Running
+For the moment, you need to download the docker images you want to be able to
+run locally, eg
+
+```
+docker pull pe_master_public_lowmem
+```
+
+Once you have the image installed, you can run the GUI and work away :)
+```
+./pe_kit.py
+```
+
+Make sure to select the correct image otherwise it will try to use latest and
+fail
+
+
