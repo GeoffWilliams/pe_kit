@@ -1,7 +1,8 @@
 # Prerequisites
 See http://www.pyladies.com/blog/Get-Your-Mac-Ready-for-Python-Programming/ for
 how to install python on a mac 
-* Python 2.7.x
+* Python 2.7.x (brew install python)
+* Python virtualenv (pip install virtualenv)
 * Xcode 
 
 # Setup
@@ -10,11 +11,11 @@ how to install python on a mac
   * Follow the MAC setup instructions at https://kivy.org/docs/installation/installation-osx.html
   * Kivy installs all its libraries into a virtualenv shipped in its own 
     installer.  The docker api needs to be installed into this environment:
-      i.    cd /Applications/Kivy.app/Contents/Resources/venv 
-      ii.   source bin/activate
-      iii.  pip install docker-py
+    1.  cd /Applications/Kivy.app/Contents/Resources/venv 
+    2.  source bin/activate
+    3.  pip install docker-py
 
-IMPORTANT! do not use zshell!!!
+**IMPORTANT! do not use zshell!!!**
 
 # Running
 For the moment, you need to download the docker images you want to be able to
@@ -28,8 +29,6 @@ Once you have the image installed, you can run the GUI and work away :)
 ```
 ./pe_kit.py
 ```
-
-Make sure to select the correct image otherwise it will try to use latest and
-fail
+**NOTE:** You must run the above command from the Docker Quickstart Shell
 
 
