@@ -1,7 +1,8 @@
 #!/usr/bin/env kivy 
 from kivy.app import App
 from kivy.clock import Clock
-from kivy.uix.gridlayout import GridLayout
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.anchorlayout import AnchorLayout
 from kivy.uix.label import Label
 from kivy.uix.button import Button
 from kivy.uix.textinput import TextInput
@@ -15,7 +16,7 @@ import pprint
 from utils import Utils
 
 
-class MainScreen(GridLayout):
+class MainScreen(BoxLayout):
   DOCKER_CONTAINER="pe_kit__"
   PE_HOSTNAME="pe-puppet.localdomain"
   DOCKER_IMAGE_PATTERN="geoffwilliams/pe_master_public_lowmem"
@@ -27,26 +28,34 @@ class MainScreen(GridLayout):
   def __init__(self, **kwargs):
     super(MainScreen, self).__init__(**kwargs)
 
-    self.cols = 2
+    self.orientation = "vertical"
     self.spacing = 30,30
     
     # banner
-    self.add_widget(Label(text="PE Kit"))
-    
+    banner_layout = AnchorLayout(size_hint=(1, 0.2))
+    banner_layout.add_widget(Label(text="PE Kit", font_size="40sp", size_hint=(0.8,1)))
+    self.add_widget(banner_layout)    
+
     # PE image selection
-    self.add_widget(Label(text="PE Version"))
-    self.docker_image_button = Button(text='Available images', size_hint=(1, 1))
-    self.add_widget(self.docker_image_button)
+    images_layout = BoxLayout(size_hint=(1, 0.3), padding=20)
+    images_layout.add_widget(Label(text="PE Version", size_hint=(0.3, 0.5)))
+    self.docker_image_button = Button(text='Available images', size_hint=(0.6, 0.5))
+    images_layout.add_widget(self.docker_image_button)
+    self.add_widget(images_layout)
+
+    # actions (contains terminal and console)
+    actions_layout = BoxLayout(size_hint=(1, 0.3), padding=20, spacing=50)
 
     # terminal 
-    self.pe_terminal_button = Button(text="Terminal")
+    self.pe_terminal_button = Button(text="Terminal", size_hint=(0.3, 0.5))
     self.pe_terminal_button.bind(on_press=self.pe_terminal)
-    self.add_widget(self.pe_terminal_button)
+    actions_layout.add_widget(self.pe_terminal_button)
 
     # console
-    self.pe_console_button = Button(text="Console")
+    self.pe_console_button = Button(text="Console", size_hint=(0.3, 0.5))
     self.pe_console_button.bind(on_press=self.pe_console)
-    self.add_widget(self.pe_console_button)
+    actions_layout.add_widget(self.pe_console_button)
+    self.add_widget(actions_layout)
 
     # log messages
     self.log_textinput = TextInput(row=20, col=60, text="")
