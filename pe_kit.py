@@ -8,13 +8,15 @@ from kivy.uix.button import Button
 from kivy.uix.textinput import TextInput
 from kivy.uix.dropdown import DropDown
 from kivy.uix.popup import Popup
+from kivy.uix.checkbox import CheckBox
 from docker import Client
 from docker.utils import kwargs_from_env
 import webbrowser
 from urlparse import urlparse
 import pprint
 from utils import Utils
-
+import json
+import urllib2
 
 class MainScreen(BoxLayout):
   DOCKER_CONTAINER="pe_kit__"
@@ -35,6 +37,10 @@ class MainScreen(BoxLayout):
     banner_layout = AnchorLayout(size_hint=(1, 0.2))
     banner_layout.add_widget(Label(text="PE Kit", font_size="40sp", size_hint=(0.8,1)))
     self.add_widget(banner_layout)    
+
+    # image downloading
+    self.available_layout = BoxLayout(size_hint=(1, 0.3), padding=20, orientation="vertical")
+    self.add_widget(self.available_layout)
 
     # PE image selection
     images_layout = BoxLayout(size_hint=(1, 0.3), padding=20)
@@ -60,6 +66,30 @@ class MainScreen(BoxLayout):
     # log messages
     self.log_textinput = TextInput(row=20, col=60, text="")
     self.add_widget(self.log_textinput)
+
+
+  def available_images(self):
+    new_images = False
+    images = json.load(urllib2.urlopen("https://registry.hub.docker.com/v2/repositories/geoffwilliams/pe_master_public/tags/"))
+    for image in images["results"]:
+      new_images = True
+      row_layout = BoxLayout()
+
+      # checkbox
+      checkbox = CheckBox()
+      row_layout.add_widget(checkbox)
+
+      # label
+      image_label = Label(text=image["name"])
+      row_layout.add_widget(image_label)
+      self.log(image["name"])
+
+      self.available_layout.add_widget(row_layout)
+    
+    if new_images:
+      self.available_layout.add_widget(Button(text="Download selected"))
+    else:    
+      self.available_layout.add_widget(Label(text="All images up-to-date"))
 
   def log(self, message, level="[info]  "):
     current = self.log_textinput.text
@@ -178,13 +208,26 @@ class MainScreen(BoxLayout):
       docker_images = self.cli.images()
       pp = pprint.PrettyPrinter()
       pp.pprint(docker_images)
+
+      tagged_images = []
+
       for docker_image in docker_images:
         image_name = docker_image["RepoTags"][0]
         self.log("found image " + image_name)
         if image_name.startswith(self.DOCKER_IMAGE_PATTERN):
+  
+          tagged_images[] = image_name
+          tagged_images = sort(tagged_images)
+
           btn = Button(text=image_name, size_hint_y=None, height=44)
           btn.bind(on_release=lambda btn: dropdown.select(btn.text))
           dropdown.add_widget(btn)
+
+      # create widgets based on the sorted list of appropriate images
+      for image_name in tagged_images:
+        btn = Button(text=image_name, size_hint_y=None, height=44)
+        btn.bind(on_release=lambda btn: dropdown.select(btn.text))
+        dropdown.add_widget(btn)
 
 
       #self.docker_image_button = Button(text='Available images', size_hint=(1, 1))
@@ -200,7 +243,8 @@ class PeKitApp(App):
 
   def on_start(self):
     self.app.update_docker_images()
-  
+    self.app.available_images()  
+
   def on_stop(self):
     self.app.log("SHUTTING DOWN...")
     self.app.stop_pe()
