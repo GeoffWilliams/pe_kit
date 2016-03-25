@@ -26,6 +26,7 @@ class MainScreen(BoxLayout):
   docker_url = None
   pe_url = None
   pe_console_port = 0
+  download_images = []
 
   def __init__(self, **kwargs):
     super(MainScreen, self).__init__(**kwargs)
@@ -67,6 +68,15 @@ class MainScreen(BoxLayout):
     self.log_textinput = TextInput(row=20, col=60, text="")
     self.add_widget(self.log_textinput)
 
+  def on_download_checkbox(self, checkbox, value):
+    if value:
+      self.download_images.append(checkbox.image_id)
+    else:
+      self.download_images.remove(checkbox.image_id)
+
+  def download_selected_images(self, x):
+    for image in self.download_images:
+      self.log("download " + image)
 
   def available_images(self):
     new_images = False
@@ -77,7 +87,10 @@ class MainScreen(BoxLayout):
 
       # checkbox
       checkbox = CheckBox()
+      checkbox.bind(active=self.on_download_checkbox)
+      checkbox.image_id = image["name"]
       row_layout.add_widget(checkbox)
+
 
       # label
       image_label = Label(text=image["name"])
@@ -87,7 +100,9 @@ class MainScreen(BoxLayout):
       self.available_layout.add_widget(row_layout)
     
     if new_images:
-      self.available_layout.add_widget(Button(text="Download selected"))
+      download_button = Button(text="Download selected")
+      download_button.bind(on_press=self.download_selected_images)
+      self.available_layout.add_widget(download_button)
     else:    
       self.available_layout.add_widget(Label(text="All images up-to-date"))
 
@@ -141,9 +156,17 @@ class MainScreen(BoxLayout):
     self.popup(title='Error!', message=message)
 
   def popup(self, title, message):
+    def close(x):
+      popup.dismiss()
+
+    popup_content = BoxLayout(orientation="vertical")
+    popup_content.add_widget(Label(text=message))
+    button_layout = AnchorLayout()
+    button_layout.add_widget(Button(text="OK", on_press=close))
+    popup_content.add_widget(button_layout)
     popup = Popup(
       title=title, 
-      content=Label(text=message), 
+      content=popup_content, 
       size_hint=(0.8,0.5),
       text_size=self.size
     )
@@ -215,13 +238,8 @@ class MainScreen(BoxLayout):
         image_name = docker_image["RepoTags"][0]
         self.log("found image " + image_name)
         if image_name.startswith(self.DOCKER_IMAGE_PATTERN):
-  
-          tagged_images[] = image_name
-          tagged_images = sort(tagged_images)
-
-          btn = Button(text=image_name, size_hint_y=None, height=44)
-          btn.bind(on_release=lambda btn: dropdown.select(btn.text))
-          dropdown.add_widget(btn)
+          tagged_images.append(image_name)
+      tagged_images.sort(reverse=True)
 
       # create widgets based on the sorted list of appropriate images
       for image_name in tagged_images:
@@ -229,6 +247,12 @@ class MainScreen(BoxLayout):
         btn.bind(on_release=lambda btn: dropdown.select(btn.text))
         dropdown.add_widget(btn)
 
+      # select the first image in the list (most recent)
+      if len(tagged_images) > 0:
+        self.log("selecting image " + tagged_images[0])
+        self.docker_image_button.text = tagged_images[0]
+      else:
+        self.error("no images available")
 
       #self.docker_image_button = Button(text='Available images', size_hint=(1, 1))
       self.docker_image_button.bind(on_release=dropdown.open)
