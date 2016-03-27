@@ -25,7 +25,9 @@ class MainScreen(BoxLayout):
   cli = None
   docker_url = None
   pe_url = None
+  dockerbuild_url = None
   pe_console_port = 0
+  dockerbuild_port = 0
   download_images = []
 
   def __init__(self, **kwargs):
@@ -64,6 +66,16 @@ class MainScreen(BoxLayout):
     actions_layout.add_widget(self.pe_console_button)
     self.add_widget(actions_layout)
 
+    # advanced (not for sales ;-)
+    advanced_layout = BoxLayout(size_hint=(1, 0.3), padding=20, spacing=50)
+    
+    # dockerbuild
+    self.dockerbuild_button = Button(text="Dockerbuild", size_hint=(0.3, 0.5))
+    self.dockerbuild_button.bind(on_press=self.dockerbuild)
+    actions_layout.add_widget(self.dockerbuild_button)
+    self.add_widget(advanced_layout)
+
+    
     # log messages
     self.log_textinput = TextInput(row=20, col=60, text="")
     self.add_widget(self.log_textinput)
@@ -141,12 +153,19 @@ class MainScreen(BoxLayout):
         self.log(pp.pformat(container_info))
 
         self.pe_console_port = container_info["NetworkSettings"]["Ports"]["443/tcp"][0]["HostPort"]
+        self.dockerbuild_port = container_info["NetworkSettings"]["Ports"]["9000/tcp"][0]["HostPort"]
 
-        
-        # update the URL to browse to
         parsed = urlparse(self.docker_url)
+        
+        # update the URL to browse to for PE console
         self.pe_url = parsed._replace(
           netloc="{}:{}".format(parsed.hostname, self.pe_console_port)
+        ).geturl()
+        
+        # update the URL for dockerbuild
+        self.dockerbuild_url = parsed._replace(
+          scheme='http',
+          netloc="{}:{}".format(parsed.hostname, self.dockerbuild_port)
         ).geturl()
       else:
         self.error("Please select an image from the list first")
@@ -195,6 +214,16 @@ class MainScreen(BoxLayout):
       # call the named callback in 2 seconds (delay without freezing)
       Clock.schedule_once(open_terminal, 2)
 
+  def dockerbuild(self, instance):
+    if self.start_pe():
+      self.info("Launching dockerbuild - have fun :)")
+
+      def open_browser(dt):
+        webbrowser.open_new(self.dockerbuild_url)
+
+      # call the named callback in 2 seconds (delay without freezing)
+      Clock.schedule_once(open_browser, 2)    
+    
   def pe_console(self, instance):
     if self.start_pe():
       self.info("Launching browser, please accept the certificate and wait approximately 2 minutes.\n  When the console loads, the username is 'admin' and the password is 'aaaaaaaa'")
