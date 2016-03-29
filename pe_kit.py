@@ -17,18 +17,25 @@ import pprint
 from utils import Utils
 import json
 import urllib2
+import threading
+import time
 
 class MainScreen(BoxLayout):
   DOCKER_CONTAINER="pe_kit__"
   PE_HOSTNAME="pe-puppet.localdomain"
-  DOCKER_IMAGE_PATTERN="geoffwilliams/pe_master_public_lowmem"
+  DOCKER_IMAGE_PATTERN="geoffwilliams/pe_master_public_lowmem_r10k_dockerbuild"
   cli = None
   docker_url = None
   pe_url = None
   dockerbuild_url = None
   pe_console_port = 0
   dockerbuild_port = 0
+
+  # images to download
   download_images = []
+
+  # locally available images
+  local_images = []
 
   def __init__(self, **kwargs):
     super(MainScreen, self).__init__(**kwargs)
@@ -42,8 +49,9 @@ class MainScreen(BoxLayout):
     self.add_widget(banner_layout)    
 
     # image downloading
-    self.available_layout = BoxLayout(size_hint=(1, 0.3), padding=20, orientation="vertical")
-    self.add_widget(self.available_layout)
+    self.download_images_layout = BoxLayout(size_hint=(1, 0.3), padding=20, orientation="vertical")
+    self.add_widget(self.download_images_layout)
+    #self.download_images_layout.borders = (2, 'solid', (1,1,1,1.))
 
     # PE image selection
     images_layout = BoxLayout(size_hint=(1, 0.3), padding=20)
@@ -64,65 +72,137 @@ class MainScreen(BoxLayout):
     self.pe_console_button = Button(text="Console", size_hint=(0.3, 0.5))
     self.pe_console_button.bind(on_press=self.pe_console)
     actions_layout.add_widget(self.pe_console_button)
+  
+    # run puppet
+    self.run_puppet_button = Button(text="Run Puppet", size_hint=(0.3, 0.5))
+    self.run_puppet_button.bind(on_press=self.run_puppet)
+    actions_layout.add_widget(self.run_puppet_button)
+  
     self.add_widget(actions_layout)
-
+    
     # advanced (not for sales ;-)
-    advanced_layout = BoxLayout(size_hint=(1, 0.3), padding=20, spacing=50)
+    self.advanced_layout = BoxLayout(size_hint=(1, 0.3), padding=20, spacing=50)
     
     # dockerbuild
     self.dockerbuild_button = Button(text="Dockerbuild", size_hint=(0.3, 0.5))
     self.dockerbuild_button.bind(on_press=self.dockerbuild)
-    actions_layout.add_widget(self.dockerbuild_button)
-    self.add_widget(advanced_layout)
-
+    self.advanced_layout.add_widget(self.dockerbuild_button)
     
     # log messages
     self.log_textinput = TextInput(row=20, col=60, text="")
-    self.add_widget(self.log_textinput)
+    toggle_log_button = Button(text="Show/Hide debug log", size_hint=(0.3, 0.5))
+    toggle_log_button.bind(on_press=self.toggle_log)
+    self.advanced_layout.add_widget(toggle_log_button)
+    
+    self.add_widget(self.advanced_layout)
 
+  def run_puppet(self, x):
+    if self.start_pe():
+      self.info("running puppet on master")
+      self.cli.exec_start(self.cli.exec_create(
+        container=self.DOCKER_CONTAINER,
+        cmd="puppet agent -t"
+      ))
+
+      
+    
+  def toggle_log(self, x):
+    if self.log_textinput in self.advanced_layout.children:
+      self.advanced_layout.remove_widget(self.log_textinput)
+    else :
+      self.advanced_layout.add_widget(self.log_textinput)
+
+      
   def on_download_checkbox(self, checkbox, value):
     if value:
-      self.download_images.append(checkbox.image_id)
+      self.download_images.append(checkbox.tag)
     else:
-      self.download_images.remove(checkbox.image_id)
+      self.download_images.remove(checkbox.tag)
 
   def download_selected_images(self, x):
     for image in self.download_images:
       self.log("download " + image)
+      self.cli.pull(
+        repository = self.DOCKER_IMAGE_PATTERN,
+        tag = image
+      )
+      
+    # update the list of images still available for download/available for use
+    self.update_downloadable_images()
+    self.update_local_images()
+    
+  # test if a tag has already been downloaded    
+  def tag_exists_locally(self, tag):
+    found = False
+    i = 0
+    while not found and i < len(self.local_images):
+      image = self.local_images[i]
+      image_split = image.split(":")
+      local_tag = image_split[len(image_split) - 1]
+      if tag == local_tag:
+        found = True
+      i += 1
+        
+    return found
+      
+  # images available for download    
+  def update_downloadable_images(self):
+    popup = [None]
+    
+    def update_message():
+      popup[0] = self.info("Checking for updates...")
+      
+    t = threading.Thread(target=update_message)
+    t.start()
+    time.sleep(1)
 
-  def available_images(self):
+    
+    # remove any existing children to handle multiple calls
+    self.download_images_layout.clear_widgets()
+    
     new_images = False
-    images = json.load(urllib2.urlopen("https://registry.hub.docker.com/v2/repositories/geoffwilliams/pe_master_public/tags/"))
-    for image in images["results"]:
-      new_images = True
-      row_layout = BoxLayout()
+    images = json.load(
+      urllib2.urlopen(
+        "https://registry.hub.docker.com/v2/repositories/%s/tags/" % 
+        self.DOCKER_IMAGE_PATTERN
+      )
+    )
+    for tags in images["results"]:
+      # if image is already downloaded, don't list it as available for download
+      tag = tags["name"]
+      if not self.tag_exists_locally(tag):
+        new_images = True
+        row_layout = BoxLayout()
+      
+        # checkbox
+        checkbox = CheckBox()
+        checkbox.bind(active=self.on_download_checkbox)
+        checkbox.tag = tag
+        row_layout.add_widget(checkbox)
 
-      # checkbox
-      checkbox = CheckBox()
-      checkbox.bind(active=self.on_download_checkbox)
-      checkbox.image_id = image["name"]
-      row_layout.add_widget(checkbox)
 
+        # label
+        image_label = Label(text=tag)
+        row_layout.add_widget(image_label)
+        self.log(tag)
 
-      # label
-      image_label = Label(text=image["name"])
-      row_layout.add_widget(image_label)
-      self.log(image["name"])
-
-      self.available_layout.add_widget(row_layout)
+        self.download_images_layout.add_widget(row_layout)
     
     if new_images:
       download_button = Button(text="Download selected")
       download_button.bind(on_press=self.download_selected_images)
-      self.available_layout.add_widget(download_button)
+      self.download_images_layout.add_widget(download_button)
     else:    
-      self.available_layout.add_widget(Label(text="All images up-to-date"))
+      self.download_images_layout.add_widget(Label(text="All images up-to-date"))
+      
+    # close the updating message or it will hang around waiting for user
+    # to click OK
+    popup[0].dismiss()
 
   def log(self, message, level="[info]  "):
     current = self.log_textinput.text
     if message is not None:
       updated = current + level + message + "\n"
-      print("****" + updated)
       self.log_textinput.text = updated
       
 
@@ -172,7 +252,7 @@ class MainScreen(BoxLayout):
     return self.container_running
 
   def error(self, message):
-    self.popup(title='Error!', message=message)
+    return self.popup(title='Error!', message=message)
 
   def popup(self, title, message):
     def close(x):
@@ -190,9 +270,10 @@ class MainScreen(BoxLayout):
       text_size=self.size
     )
     popup.open()
+    return popup
 
   def info(self, message):
-    self.popup(title='Information', message=message)
+    return self.popup(title='Information', message=message)
 
   def stop_pe(self):
     if self.container_running:
@@ -251,7 +332,8 @@ class MainScreen(BoxLayout):
       self.cli = Client(**kwargs)
     self.container_running = False
 
-  def update_docker_images(self):
+  # local images already downloaded (drop down list)  
+  def update_local_images(self):
     if self.cli is None:
       self.docker_init()
  
@@ -261,25 +343,25 @@ class MainScreen(BoxLayout):
       pp = pprint.PrettyPrinter()
       pp.pprint(docker_images)
 
-      tagged_images = []
+      self.local_images = []
 
       for docker_image in docker_images:
         image_name = docker_image["RepoTags"][0]
         self.log("found image " + image_name)
         if image_name.startswith(self.DOCKER_IMAGE_PATTERN):
-          tagged_images.append(image_name)
-      tagged_images.sort(reverse=True)
+          self.local_images.append(image_name)
+      self.local_images.sort(reverse=True)
 
       # create widgets based on the sorted list of appropriate images
-      for image_name in tagged_images:
+      for image_name in self.local_images:
         btn = Button(text=image_name, size_hint_y=None, height=44)
         btn.bind(on_release=lambda btn: dropdown.select(btn.text))
         dropdown.add_widget(btn)
 
       # select the first image in the list (most recent)
-      if len(tagged_images) > 0:
-        self.log("selecting image " + tagged_images[0])
-        self.docker_image_button.text = tagged_images[0]
+      if len(self.local_images) > 0:
+        self.log("selecting image " + self.local_images[0])
+        self.docker_image_button.text = self.local_images[0]
       else:
         self.error("no images available")
 
@@ -295,8 +377,8 @@ class PeKitApp(App):
     return self.app
 
   def on_start(self):
-    self.app.update_docker_images()
-    self.app.available_images()  
+    self.app.update_local_images()
+    self.app.update_downloadable_images()  
 
   def on_stop(self):
     self.app.log("SHUTTING DOWN...")
