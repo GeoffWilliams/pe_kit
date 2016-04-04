@@ -1,0 +1,98 @@
+#:kivy 1.0
+
+ScreenManagement:
+    MainScreen:
+    SettingsScreen:
+  
+<MainScreen>:
+    name: 'main'
+
+    BoxLayout:
+        orientation: 'vertical'
+        
+        BoxLayout:
+            # PE Kit banner
+            AnchorLayout:
+                size_hint: (0.8,1) 
+                Label:
+                    text: 'PE Kit'
+                    font_size: '40sp'
+                             
+            # settings
+            Button:
+                text: 'Settings'
+                size_hint: (0.2,1)
+                on_release: app.root.current = 'settings'
+                Image:
+                    source: 'icons/settings.png'
+                    x: self.parent.x + (self.parent.width/2) - (self.width/2)
+                    y: self.parent.y + (self.parent.height/4) - (self.height/2)
+                    
+        BoxLayout:
+            # console    
+            Button:
+                text: 'Console'
+                on_press: app.pe_console()
+
+            # terminal
+            Button:
+                text: 'Terminal'
+                on_press: app.pe_terminal()
+
+        #
+        # Advanced
+        #
+        BoxLayout:
+            # run puppet
+            Button:
+                text:  'Run Puppet'
+                on_release: app.run_puppet()
+
+            # dockerbuild
+            Button:
+                text: 'Dockerbuild'
+                on_release: app.dockerbuild()
+
+        #
+        # Status
+        #
+        Label:
+            text: 'Status:'
+            
+            
+<SettingsScreen>:
+    name: 'settings'
+
+    BoxLayout:
+        orientation: 'vertical'
+
+        # start automatically
+        BoxLayout:
+            CheckBox:
+                value: 'checked'
+
+            Label:
+                text: 'Start container automatically'
+            
+        # kill orphans
+        BoxLayout:
+            CheckBox:
+                value: 'checked'
+
+            Label:
+                text: 'Kill orphaned containers on startup'
+                
+        # downloadable images
+        BoxLayout:
+            size_hint: (1, 0.3)
+            padding: 20
+            orientation: 'vertical'
+
+        # selected image
+        BoxLayout:
+            Label:
+                text: "Selected image"
+
+        Button:
+            on_release: app.root.current = 'main'
+            text: 'Back'
