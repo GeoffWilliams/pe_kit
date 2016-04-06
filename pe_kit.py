@@ -22,12 +22,16 @@ import time
 import subprocess
 import os
 import logging
+import docker.errors
 from kivy.lang import Builder
 from kivy.uix.settings import (SettingsWithSidebar,
                                SettingsWithSpinner,
                                SettingsWithTabbedPanel)
 from kivy.uix.screenmanager import ScreenManager, Screen, FadeTransition
 from kivy.properties import ObjectProperty
+
+logging.basicConfig(level=logging.DEBUG)    
+
 
 class DockerMachine():
   """
@@ -80,21 +84,11 @@ class SettingsScreen(Screen):
     
   def on_download_checkbox(self, checkbox, value):
     if value:
-      self.download_images.append(checkbox.tag)
+      self.controller.download_images.append(checkbox.tag)
     else:
-      self.download_images.remove(checkbox.tag)    
+      self.controller.download_images.remove(checkbox.tag)    
     
-  def download_selected_images(self, x):
-    for image in self.download_images:
-      self.log("download " + image)
-      self.cli.pull(
-        repository = self.DOCKER_IMAGE_PATTERN,
-        tag = image
-      )
-      
-    # update the list of images still available for download/available for use
-    self.update_downloadable_images()
-    self.update_local_images()    
+
     
 #    self.orientation = "vertical"
 #    self.spacing = 30,30  
@@ -121,7 +115,7 @@ class SettingsScreen(Screen):
         self.download_images_layout.add_widget(row_layout)
 
       download_button = Button(text="Download selected")
-      download_button.bind(on_press=self.download_selected_images)
+      download_button.bind(on_press=self.controller.download_selected_images)
       self.download_images_layout.add_widget(download_button)
     else:    
       self.download_images_layout.add_widget(Label(text="All images up-to-date"))
@@ -156,19 +150,23 @@ class MainScreen(Screen):
   The main screen of the application
   """
 
-  logger = logging.getLogger(__name__)
-
-  # images to download
-  download_images = []
-
-  # locally available images
-  local_images = []
+  logger = logging.getLogger(__name__)  
+  status_label            = ObjectProperty(None)
+  advanced_layout         = ObjectProperty(None)
+  advanced_layout_holder  = ObjectProperty(None)
   
-  status_label = ObjectProperty(None)
 
   def __init__(self, **kwargs):
     super(MainScreen, self).__init__(**kwargs)
     self.controller = Controller()
+    
+  def toggle_advanced(self):
+    if self.advanced_layout in self.advanced_layout_holder.children:
+      # showing -> hide
+      self.advanced_layout_holder.clear_widgets()
+    else:
+      # hidden -> show
+      self.advanced_layout_holder.add_widget(self.advanced_layout)
 
   def toggle_log(self, x):
     if self.log_textinput in self.advanced_layout.children:
@@ -294,16 +292,14 @@ class MainScreen(Screen):
 #      #self.add_widget(self.docker_image_button)
 #      dropdown.bind(on_select=lambda instance, x: setattr(self.docker_image_button, 'text', x))  
 
-#class Settings:
-#  __shared_state = {}
-#  start_automatically = True
-#  kill_orphans = True
-#  use_latest_image = True
-#  selected_image = None
-#  
-#  
-#  def __init__(self):
-#    self.__dict__ = self.__shared_state  
+class Settings:
+  __shared_state = {}
+  start_automatically = True
+  kill_orphans = True
+  use_latest_image = True
+
+  def __init__(self):
+    self.__dict__ = self.__shared_state  
 
 # borg class, see http://code.activestate.com/recipes/66531-singleton-we-dont-need-no-stinkin-singleton-the-bo/
 class Controller:
@@ -319,7 +315,14 @@ class Controller:
   PE_HOSTNAME="pe-puppet.localdomain"
   DOCKER_IMAGE_PATTERN="geoffwilliams/pe_master_public_lowmem_r10k_dockerbuild"
   cli = None
+  
+  # images avaiable for downloading
   downloadable_images = []
+  
+  # images to download
+  download_images = []
+  
+  # images available locally
   local_images = []
   docker_url = None
   pe_url = None
@@ -328,9 +331,11 @@ class Controller:
   dockerbuild_port = 0
   app = None
   container_running = False
+  settings = Settings()
   
   def __init__(self):
     self.__dict__ = self.__shared_state
+
   
   def docker_init(self):
     #  boot2docker specific hacks in use - see:  http://docker-py.readthedocs.org/en/latest/boot2docker/
@@ -355,7 +360,16 @@ class Controller:
         self.app.update_ui_images()
         
         # stop any existing container (eg if we were killed)
-      self.container_running = False
+        try:
+          if self.cli.inspect_container(self.DOCKER_CONTAINER):
+            if self.settings.kill_orphans:
+              self.logger.info("killing orphaned container")
+              self.cli.remove_container(self.DOCKER_CONTAINER, force=True)
+            else:
+              self.logger.info("reusing existing container")
+              self.container_running = True
+        except docker.errors.NotFound:
+          self.logger.info("container not running, OK to start new one")
     else:
       # no docker machine
       self.app.error("Unable to start docker :*(")
@@ -369,6 +383,21 @@ class Controller:
     # docker startup in own thread
     t = threading.Thread(target=self.docker_init)
     t.start()
+    
+  def download_selected_images(self, x):
+    for image in self.download_images:
+      self.logger.info("download " + image)
+      
+      #t = threading.Thread(target=update_message)
+#    t.start()
+      self.cli.pull(
+        repository = self.DOCKER_IMAGE_PATTERN,
+        tag = image
+      )
+      
+    # update the list of images still available for download/available for use
+    self.update_downloadable_images()
+    self.update_local_images()        
     
   def start_pe(self):
     selected_image = self.app.get_selected_image()
@@ -473,7 +502,7 @@ class Controller:
   
 class ScreenManagement(ScreenManager):
   """Screen management binding class"""
-    pass
+  pass
   
 class PeKitApp(App):
   """
@@ -481,6 +510,10 @@ class PeKitApp(App):
   The main application
   """
   logger = logging.getLogger(__name__)
+  
+  
+  def toggle_advanced(self):
+    self.root.get_screen("main").toggle_advanced()
     
   def update_ui_images(self):
     from pprint import pprint
@@ -534,7 +567,8 @@ class PeKitApp(App):
     return Builder.load_file("main.kv")
 
   def on_start(self):
-    pass
+    # hide advanced by default
+    self.root.get_screen("main").toggle_advanced()
 
   def on_stop(self):
     self.controller.stop_docker_containers()
@@ -567,6 +601,5 @@ class PeKitApp(App):
     return self.popup(title='Information', message=message)  
   
   
-logging.basicConfig(level=logging.DEBUG)    
 PeKitApp().run()
 # App.get_running_app()

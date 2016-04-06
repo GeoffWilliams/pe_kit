@@ -7,6 +7,8 @@ ScreenManagement:
     name: 'main'
     
     status_label: status_label
+    advanced_layout: advanced_layout
+    advanced_layout_holder: advanced_layout_holder
 
     BoxLayout:
         orientation: 'vertical'
@@ -43,16 +45,25 @@ ScreenManagement:
         #
         # Advanced
         #
+        Button:
+            text: 'Toggle advanced actions'
+            on_press: app.toggle_advanced()
+        
         BoxLayout:
-            # run puppet
-            Button:
-                text:  'Run Puppet'
-                on_release: app.run_puppet()
+            id: advanced_layout_holder
+        
+            BoxLayout:
+                id: advanced_layout
 
-            # dockerbuild
-            Button:
-                text: 'Dockerbuild'
-                on_release: app.dockerbuild()
+                # run puppet
+                Button:
+                    text:  'Run Puppet'
+                    on_release: app.run_puppet()
+
+                # dockerbuild
+                Button:
+                    text: 'Dockerbuild'
+                    on_release: app.dockerbuild()
 
         #
         # Status
@@ -93,7 +104,6 @@ ScreenManagement:
         # downloadable images
         BoxLayout:
             id: download_images_layout
-            size_hint: (1, 0.3)
             padding: 20
             orientation: 'vertical'
 
