@@ -12,6 +12,9 @@ ScreenManagement:
     container_status_label:container_status_label
     container_delete_image: container_delete_image
     docker_status_image: docker_status_image
+    action_layout_holder: action_layout_holder
+    action_layout: action_layout
+    pe_status_image: pe_status_image
     
     BoxLayout:
         orientation: 'vertical'
@@ -39,15 +42,18 @@ ScreenManagement:
                     y: self.parent.y + (self.parent.height/2)
                     
         BoxLayout:
-            # console    
-            Button:
-                text: 'Console'
-                on_press: app.pe_console()
+            id: action_layout_holder
+            BoxLayout:
+                id: action_layout
+                # console    
+                Button:
+                    text: 'Console'
+                    on_press: app.pe_console()
 
-            # terminal
-            Button:
-                text: 'Terminal'
-                on_press: app.pe_terminal()
+                # terminal
+                Button:
+                    text: 'Terminal'
+                    on_press: app.pe_terminal()
 
         #
         # Advanced
@@ -79,22 +85,45 @@ ScreenManagement:
         BoxLayout:
             Label:
                 text: 'Status:'
+                size_hint: (0.2, 1)
             Label:
                 id: app_status_label
                 text: '...'
+                size_hint: (0.2, 1)
             Label:
                 id: container_status_label
                 text: '...'
+                size_hint: (0.4, 1)
+            Button:
+                on_release: app.controller.stop_docker_containers()
+                #size_hint: (None, None)
+                size_hint: (0.1, 1)
+                width: dp(40)
+                height: dp(40)
+                Image:
+                    id: container_delete_image
+                    allow_stretch: True
+                    center_x: self.parent.center_x
+                    center_y: self.parent.center_y
+                    height: dp(40)
+                    width: dp(40)
             Image:
-                id: container_delete_image
-                size: (40,40)
-            Image:
-                id: docker_status_image
+                id: pe_status_image
+                size_hint: (0.1, 1)
                 allow_stretch: True
                 size_hint_y: None
                 size_hint_x: None
-                height: dp(100)
-                width: dp(100)
+                height: dp(40)
+                width: dp(40)
+                source: 'icons/disabled.png'                   
+            Image:
+                id: docker_status_image
+                size_hint: (0.1, 1)
+                allow_stretch: True
+                size_hint_y: None
+                size_hint_x: None
+                height: dp(40)
+                width: dp(40)
                 source:  'icons/ok.png'
                 
 

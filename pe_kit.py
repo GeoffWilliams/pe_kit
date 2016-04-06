@@ -34,6 +34,9 @@ from kivy.uix.settings import (SettingsWithSidebar,
                                SettingsWithTabbedPanel)
 from kivy.uix.screenmanager import ScreenManager, Screen, FadeTransition
 from kivy.properties import ObjectProperty
+import dateutil.parser
+import datetime
+import ssl
 
 
 
@@ -165,10 +168,21 @@ class MainScreen(Screen):
   container_status_label  = ObjectProperty(None)
   container_delete_image  = ObjectProperty(None)
   docker_status_image     = ObjectProperty(None)
+  action_layout_holder    = ObjectProperty(None)
+  action_layout           = ObjectProperty(None)
+  pe_status_image         = ObjectProperty(None)
 
   def __init__(self, **kwargs):
     super(MainScreen, self).__init__(**kwargs)
     self.controller = Controller()
+    
+  def toggle_action_layout(self, show):
+    if show:
+      # hidden -> show
+      self.action_layout_holder.add_widget(self.action_layout)    
+    else:
+      # showing -> hide
+      self.action_layout_holder.clear_widgets()
     
   def toggle_advanced(self):
     if self.advanced_layout in self.advanced_layout_holder.children:
@@ -340,11 +354,41 @@ class Controller:
   pe_console_port = 0
   dockerbuild_port = 0
   app = None
-  container_running = False
   settings = Settings()
   
   def __init__(self):
     self.__dict__ = self.__shared_state
+    
+  def pe_status(self):
+    """return status of PE master: running, loading, stopped"""
+
+    # turn off SSL cert verifcation since we're using puppets self-signed certs
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE    
+    
+    try:
+      code = urllib2.urlopen(self.pe_url, context=ctx).getcode()
+      if code == 200:
+        self.logger.debug("puppet up and running :D")
+        status = "running"
+      else:
+        self.logger.debug("puppet loading...")
+        status = "loading"
+    except urllib2.HTTPError as e:
+        self.logger.debug("puppet http server error: {message} code: {code}".format(
+          message = e.reason,
+          code = e.code
+        ))
+        status = "loading"      
+    except urllib2.URLError as e:
+        self.logger.debug("puppet stopped/unreachable at {pe_url}:  {message}".format(
+          pe_url = self.pe_url,
+          message = e.reason,
+        ))
+        status = "stopped"
+
+    return status
 
   
   def docker_init(self):
@@ -369,6 +413,9 @@ class Controller:
         self.refresh_images()
         self.app.update_ui_images()
         
+        # ready for action, enable buttons
+        self.app.toggle_action_layout(True)
+        
         # stop any existing container (eg if we were killed)
         try:
           if self.cli.inspect_container(self.DOCKER_CONTAINER):
@@ -377,7 +424,6 @@ class Controller:
               self.cli.remove_container(self.DOCKER_CONTAINER, force=True)
             else:
               self.logger.info("reusing existing container")
-              self.container_running = True
         except docker.errors.NotFound:
           self.logger.info("container not running, OK to start new one")
     else:
@@ -399,10 +445,30 @@ class Controller:
       alive = False
     return alive
   
+  def container_alive(self):
+    """
+    Return container uptime or false if its dead
+    """
+    alive = False
+    if self.cli:
+      try:
+        inspection = self.cli.inspect_container(self.DOCKER_CONTAINER)
+        if inspection["State"]["Status"] == "running":
+          started = time.mktime(
+            dateutil.parser.parse(inspection["State"]["StartedAt"]).timetuple())
+          now = time.mktime(datetime.datetime.utcnow().timetuple())
+
+          alive = now - started
+      except requests.exceptions.ConnectionError:
+        self.logger.error("urllib3 error talking to docker daemon")
+      except docker.errors.NotFound:
+        pass
+    return alive    
+  
+  
   def stop_docker_containers(self):
-    if self.container_running:
+    if self.container_alive():
       self.cli.remove_container(container=self.container.get('Id'), force=True)
-      self.container_running = False
   
   def start_docker_daemon(self):
     # docker startup in own thread
@@ -425,8 +491,9 @@ class Controller:
     self.update_local_images()        
     
   def start_pe(self):
+    status = False
     selected_image = self.app.get_selected_image()
-    if not self.container_running:
+    if not self.container_alive():
       if selected_image.startswith(self.DOCKER_IMAGE_PATTERN):
         self.container = self.cli.create_container(
           image=selected_image,
@@ -443,7 +510,6 @@ class Controller:
           publish_all_ports=True,
         )
         #self.log(resp)
-        self.container_running = True
 
         # inspect the container and get the port mapping
         container_info = self.cli.inspect_container(self.container.get("Id"))
@@ -466,10 +532,12 @@ class Controller:
           scheme='http',
           netloc="{}:{}".format(parsed.hostname, self.dockerbuild_port)
         ).geturl()
+        
+        status = True
       else:
         self.app.error("Please select an image from the list first")
-    return self.container_running
- 
+      return status
+
   def refresh_images(self):
     self.update_local_images()
     self.update_downloadable_images()      
@@ -596,11 +664,11 @@ class PeKitApp(App):
     # hide advanced by default
     self.root.get_screen("main").toggle_advanced()
     
+    # hide action buttons until we have loaded the system
+    self.root.get_screen("main").toggle_action_layout(False)
+
+    # monitor the docker daemon and container
     Clock.schedule_interval(self.daemon_monitor, 5)
-    
-#    t = threading.Thread(target=self.daemon_monitor)
-#    t.start()
-#    t.start()self.daemon_monitor()
 
   def on_stop(self):
     self.app_running = False
@@ -633,17 +701,42 @@ class PeKitApp(App):
   def info(self, message):
     return self.popup(title='Information', message=message)
   
+  def toggle_action_layout(self, show):
+    self.root.get_screen("main").toggle_action_layout(show)
+  
   def daemon_monitor(self, x):
     alive = self.controller.daemon_alive()
-
+    container_status = "not running"
+    container_icon = ""
+    pe_status = "stopped"
+    
     if alive:
       self.logger.debug("docker daemon ok :)")
-      icon = "icons/ok.png"
+      daemon_icon = "icons/ok.png"
+      
+      # docker is alive, lets check the container too
+      uptime = self.controller.container_alive()
+      if uptime:
+        container_status = "up {uptime} seconds".format(uptime=uptime)
+        container_icon = "icons/delete.png"
+        pe_status = self.controller.pe_status()
+
     else:
       self.logger.error("docker daemon dead!")
-      icon = "icons/error.png"
+      daemon_icon = "icons/error.png"
 
-    self.root.get_screen("main").docker_status_image.source = icon
+    if pe_status == "running":
+      pe_status_icon = "icons/puppet.png"
+    elif pe_status == "loading":
+      pe_status_icon = "icons/wait.png"
+    else:
+      pe_status_icon = "icons/disabled.png"
+    
+      
+    self.root.get_screen("main").docker_status_image.source = daemon_icon
+    self.root.get_screen("main").container_delete_image.source = container_icon
+    self.root.get_screen("main").container_status_label.text = container_status
+    self.root.get_screen("main").pe_status_image.source = pe_status_icon
   
 PeKitApp().run()
 # App.get_running_app()
