@@ -295,47 +295,7 @@ class MainScreen(Screen):
     # call the named callback in 2 seconds (delay without freezing)
     Clock.schedule_once(open_browser, 2)
 
-
     
-  
-#  # local images already downloaded (drop down list)  
-#  def update_local_images(self):
-#
-#    if self.cli is not None: 
-#      dropdown = DropDown()
-#      docker_images = self.cli.images()
-#      pp = pprint.PrettyPrinter()
-#      pp.pprint(docker_images)
-#
-#      self.local_images = []
-#
-#      for docker_image in docker_images:
-#        image_name = docker_image["RepoTags"][0]
-#        self.log("found image " + image_name)
-#        if image_name.startswith(self.DOCKER_IMAGE_PATTERN):
-#          self.local_images.append(image_name)
-#      self.local_images.sort(reverse=True)
-#
-#      # create widgets based on the sorted list of appropriate images
-#      for image_name in self.local_images:
-#        btn = Button(text=image_name, size_hint_y=None, height=44)
-#        btn.bind(on_release=lambda btn: dropdown.select(btn.text))
-#        dropdown.add_widget(btn)
-#
-#      # select the first image in the list (most recent)
-#      if len(self.local_images) > 0:
-#        self.log("selecting image " + self.local_images[0])
-#        self.docker_image_button.text = self.local_images[0]
-#      else:
-#        self.error("no images available")
-#
-#      #self.docker_image_button = Button(text='Available images', size_hint=(1, 1))
-#      self.docker_image_button.bind(on_release=dropdown.open)
-#      #self.add_widget(self.docker_image_button)
-#      dropdown.bind(on_select=lambda instance, x: setattr(self.docker_image_button, 'text', x))  
-
-
-
 # borg class, see http://code.activestate.com/recipes/66531-singleton-we-dont-need-no-stinkin-singleton-the-bo/
 class Controller:
   """
@@ -633,7 +593,7 @@ class PeKitApp(App):
     
   def pe_console(self):
     print("pe_console clicked!")
-    self.info("Launching browser, please accept the certificate and wait approximately 2 minutes.\n  When the console loads, the username is 'admin' and the password is 'aaaaaaaa'")
+    self.info("Launching browser, please accept the certificate! \nThe username is 'admin' and the password is 'aaaaaaaa'")
 
     def open_browser(dt):
       webbrowser.open_new(self.controller.pe_url)
