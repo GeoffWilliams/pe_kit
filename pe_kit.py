@@ -21,17 +21,23 @@ import threading
 import time
 import subprocess
 import os
+import logging
 
 from kivy.lang import Builder
 from kivy.uix.settings import (SettingsWithSidebar,
                                SettingsWithSpinner,
                                SettingsWithTabbedPanel)
 from kivy.uix.screenmanager import ScreenManager, Screen, FadeTransition
-
+from kivy.properties import ObjectProperty
 
 class DockerMachine():
+
+  logger = logging.getLogger(__name__)
+  
   def status(self):
-    return subprocess.check_output(["docker-machine", "status"]).strip()
+    status = subprocess.check_output(["docker-machine", "status"]).strip()
+    self.logger.info("docker-machine status: " + status)
+    return status
   
   def start(self):
     # start the daemon if its not already running
@@ -39,9 +45,11 @@ class DockerMachine():
     if self.status() != "Running":
       out = subprocess.check_output(["docker-machine", "start"])
       if self.status() == "Running":
+        self.logger.info("docker-machine started OK")
         started = True
     else:
       started = True
+      self.logger.info("docker-machine already running")
     
     # setup the docker environment variables if we managed to start the daemon
     if started:
@@ -51,15 +59,39 @@ class DockerMachine():
           key = line.split("=")[0].replace('export ', '')
           value = line.split("=")[1].replace('"','')
 
+          self.logger.info("export {key}={value}".format(key=key, value=value))
           os.environ[key] = value
 
     return started
 
 class SettingsScreen(Screen):
+  
+  logger = logging.getLogger(__name__)
+  download_images_layout = ObjectProperty(None)
+  selected_image_button = ObjectProperty(None)
+  
   def __init__(self, **kwargs):
     super(SettingsScreen, self).__init__(**kwargs)
     self.controller = Controller()
-
+    
+  def on_download_checkbox(self, checkbox, value):
+    if value:
+      self.download_images.append(checkbox.tag)
+    else:
+      self.download_images.remove(checkbox.tag)    
+    
+  def download_selected_images(self, x):
+    for image in self.download_images:
+      self.log("download " + image)
+      self.cli.pull(
+        repository = self.DOCKER_IMAGE_PATTERN,
+        tag = image
+      )
+      
+    # update the list of images still available for download/available for use
+    self.update_downloadable_images()
+    self.update_local_images()    
+    
 #    self.orientation = "vertical"
 #    self.spacing = 30,30  
   def update_ui_images(self):
@@ -80,7 +112,7 @@ class SettingsScreen(Screen):
         # label
         image_label = Label(text=tag)
         row_layout.add_widget(image_label)
-        self.log(tag)
+        self.logger.info(tag)
 
         self.download_images_layout.add_widget(row_layout)
 
@@ -101,27 +133,29 @@ class SettingsScreen(Screen):
       btn.bind(on_release=lambda btn: dropdown.select(btn.text))
       dropdown.add_widget(btn)
 
-      # select the first image in the list (most recent)
-      if len(self.controller.local_images) > 0:
-        self.log("selecting image " + self.controller.local_images[0])
-        self.docker_image_button.text = self.controller.local_images[0]
-      else:
-        self.error("no images available")
+    self.selected_image_button.bind(on_release=dropdown.open)
+    #self.add_widget(self.docker_image_button)
+    dropdown.bind(on_select=lambda instance, x: setattr(self.selected_image_button, 'text', x))  
 
-      #self.docker_image_button = Button(text='Available images', size_hint=(1, 1))
-      self.docker_image_button.bind(on_release=dropdown.open)
-      #self.add_widget(self.docker_image_button)
-      dropdown.bind(on_select=lambda instance, x: setattr(self.docker_image_button, 'text', x))  
-
+    # select the first image in the list (most recent)
+    if len(self.controller.local_images) > 0:
+      self.logger.debug("selecting image " + self.controller.local_images[0])
+      self.selected_image_button.text = self.controller.local_images[0]
+    else:
+      self.error("no images available")
+    
 
 class MainScreen(Screen):
 
+  logger = logging.getLogger(__name__)
 
   # images to download
   download_images = []
 
   # locally available images
   local_images = []
+  
+  status_label = ObjectProperty(None)
 
   def __init__(self, **kwargs):
     super(MainScreen, self).__init__(**kwargs)
@@ -324,33 +358,10 @@ class MainScreen(Screen):
 #        self.error("Please select an image from the list first")
 #    return self.container_running
 
-  def error(self, message):
-    return self.popup(title='Error!', message=message)
-
-  def popup(self, title, message):
-    def close(x):
-      popup.dismiss()
-
-    popup_content = BoxLayout(orientation="vertical")
-    popup_content.add_widget(Label(text=message))
-    button_layout = AnchorLayout()
-    button_layout.add_widget(Button(text="OK", on_press=close))
-    popup_content.add_widget(button_layout)
-    popup = Popup(
-      title=title, 
-      content=popup_content, 
-      size_hint=(0.8,0.5),
-      text_size=self.size
-    )
-    popup.open()
-    return popup
-
-  def info(self, message):
-    return self.popup(title='Information', message=message)
 
 
-  def get_selected_image(self):
-    return self.docker_image_button.text
+
+
 
     
   def pe_console(self, instance):
@@ -416,6 +427,8 @@ class MainScreen(Screen):
 # borg class, see http://code.activestate.com/recipes/66531-singleton-we-dont-need-no-stinkin-singleton-the-bo/
 class Controller:
   __shared_state = {}
+  
+  logger = logging.getLogger(__name__)
   
   DOCKER_CONTAINER="pe_kit__"
   PE_HOSTNAME="pe-puppet.localdomain"
@@ -515,7 +528,7 @@ class Controller:
           netloc="{}:{}".format(parsed.hostname, self.dockerbuild_port)
         ).geturl()
       else:
-        self.error("Please select an image from the list first")
+        self.app.error("Please select an image from the list first")
     return self.container_running
  
   def refresh_images(self):
@@ -565,17 +578,24 @@ class Controller:
         found = True
       i += 1
         
-    return found   
+    return found
+  
+  def run_puppet():
+    self.cli.exec_start(self.cli.exec_create(
+      container=self.DOCKER_CONTAINER,
+      cmd="puppet agent -t"
+    ))
   
 class ScreenManagement(ScreenManager):
     pass
   
 class PeKitApp(App):
-
+  logger = logging.getLogger(__name__)
     
   def update_ui_images(self):
-    sm = ScreenManagement()
-    sm.get_screen("settings").update_ui_images()
+    from pprint import pprint
+    pprint (vars(self))
+    self.root.get_screen("settings").update_ui_images()
     
     
   def pe_console(self):
@@ -595,7 +615,7 @@ class PeKitApp(App):
 
       def open_terminal(dt):
         Utils.docker_terminal("docker exec -ti {name} bash".format(
-          name=controller.DOCKER_CONTAINER,
+          name=Controller.DOCKER_CONTAINER,
         ))
       
       # call the named callback in 2 seconds (delay without freezing)
@@ -614,39 +634,52 @@ class PeKitApp(App):
   def run_puppet(self):
     if self.controller.start_pe():
       self.info("running puppet on master")
-      self.cli.exec_start(self.cli.exec_create(
-        container=self.DOCKER_CONTAINER,
-        cmd="puppet agent -t"
-      ))
+      self.controller.run_puppet()
+
         
     
   def build(self):
     self.controller = Controller()
     self.controller.start_docker_daemon()
     self.controller.app = self
-    
-    #sm = ScreenManager()
-    #sm.add_widget(MainScreen(name='main'))
-    #sm.add_widget(SettingsScreen(name='settings'))    
-    #sm.current = 'settings'
-    #self.controller.settings_app = Builder.load_file('settings.kv')
-    
-    #return sm #
-    #return self.controller.app
+
     return Builder.load_file("main.kv")
 
   
-#  def on_start(self):
-#    time.sleep(30)
-#    self.app.update_ui_images()
+  def on_start(self):
+    pass
 
   def on_stop(self):
     self.controller.stop_docker_containers()
+    
+  def get_selected_image(self):
+    return self.root.get_screen("settings").selected_image_button.text    
 
-#  def display_settings(self, settings):
-#    super(PeKitApp, self).display_settings(settings)    
-#    
-#  def close_settings(self, *args):
-#    super(PeKitApp, self).close_settings()    
+  def error(self, message):
+    return self.popup(title='Error!', message=message)
 
+  def popup(self, title, message):
+    def close(x):
+      popup.dismiss()
+
+    popup_content = BoxLayout(orientation="vertical")
+    popup_content.add_widget(Label(text=message))
+    button_layout = AnchorLayout()
+    button_layout.add_widget(Button(text="OK", on_press=close))
+    popup_content.add_widget(button_layout)
+    popup = Popup(
+      title=title, 
+      content=popup_content, 
+      size_hint=(0.8,0.5),
+      text_size=16
+    )
+    popup.open()
+    return popup
+
+  def info(self, message):
+    return self.popup(title='Information', message=message)  
+  
+  
+logging.basicConfig(level=logging.DEBUG)    
 PeKitApp().run()
+# App.get_running_app()

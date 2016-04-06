@@ -1,11 +1,12 @@
 #:kivy 1.0
-
 ScreenManagement:
     MainScreen:
     SettingsScreen:
   
 <MainScreen>:
     name: 'main'
+    
+    status_label: status_label
 
     BoxLayout:
         orientation: 'vertical'
@@ -56,12 +57,19 @@ ScreenManagement:
         #
         # Status
         #
-        Label:
-            text: 'Status:'
-            
+        BoxLayout:
+            Label:
+                text: 'Status:'
+            Label:
+                id: status_label
+                text: '...'            
             
 <SettingsScreen>:
     name: 'settings'
+
+    # widget/class variable mapping
+    download_images_layout: download_images_layout
+    selected_image_button: selected_image_button
 
     BoxLayout:
         orientation: 'vertical'
@@ -84,6 +92,7 @@ ScreenManagement:
                 
         # downloadable images
         BoxLayout:
+            id: download_images_layout
             size_hint: (1, 0.3)
             padding: 20
             orientation: 'vertical'
@@ -92,6 +101,11 @@ ScreenManagement:
         BoxLayout:
             Label:
                 text: "Selected image"
+                
+            Button:
+                id: selected_image_button
+                text: "Available images"
+              
 
         Button:
             on_release: app.root.current = 'main'
