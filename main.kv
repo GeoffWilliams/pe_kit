@@ -15,6 +15,8 @@ ScreenManagement:
     action_layout_holder: action_layout_holder
     action_layout: action_layout
     pe_status_image: pe_status_image
+    console_button: console_button
+    terminal_button: terminal_button
     
     BoxLayout:
         orientation: 'vertical'
@@ -47,11 +49,14 @@ ScreenManagement:
                 id: action_layout
                 # console    
                 Button:
+                    id: console_button
                     text: 'Console'
                     on_press: app.pe_console()
+                    disabled: True
 
                 # terminal
                 Button:
+                    id: terminal_button
                     text: 'Terminal'
                     on_press: app.pe_terminal()
 

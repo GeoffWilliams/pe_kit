@@ -38,7 +38,14 @@ import dateutil.parser
 import datetime
 import ssl
 
+class Settings:
+  __shared_state = {}
+  start_automatically = True
+  kill_orphans = True
+  use_latest_image = True
 
+  def __init__(self):
+    self.__dict__ = self.__shared_state  
 
 class DockerMachine():
   """
@@ -88,6 +95,8 @@ class SettingsScreen(Screen):
   logger = logging.getLogger(__name__)
   download_images_layout = ObjectProperty(None)
   selected_image_button = ObjectProperty(None)
+  settings                = Settings()
+
   
   def __init__(self, **kwargs):
     super(SettingsScreen, self).__init__(**kwargs)
@@ -150,6 +159,12 @@ class SettingsScreen(Screen):
     if len(self.controller.local_images) > 0:
       self.logger.debug("selecting image " + self.controller.local_images[0])
       self.selected_image_button.text = self.controller.local_images[0]
+      
+      # start automatically if configured
+      if self.settings.start_automatically:
+        self.logger.debug("automatically starting container (settings)")
+        self.controller.start_pe()
+      
     else:
       self.error("no images available")
     
@@ -171,6 +186,9 @@ class MainScreen(Screen):
   action_layout_holder    = ObjectProperty(None)
   action_layout           = ObjectProperty(None)
   pe_status_image         = ObjectProperty(None)
+  console_button          = ObjectProperty(None)
+  terminal_button         = ObjectProperty(None)
+  settings                = Settings()
 
   def __init__(self, **kwargs):
     super(MainScreen, self).__init__(**kwargs)
@@ -268,14 +286,14 @@ class MainScreen(Screen):
       self.log_textinput.text = updated
           
   def pe_console(self, instance):
-    if self.controller.start_pe():
-      self.info("Launching browser, please accept the certificate and wait approximately 2 minutes.\n  When the console loads, the username is 'admin' and the password is 'aaaaaaaa'")
 
-      def open_browser(dt):
-        webbrowser.open_new(self.controller.pe_url)
+    self.info("Launching browser, please accept the certificate and wait approximately 2 minutes.\n  When the console loads, the username is 'admin' and the password is 'aaaaaaaa'")
 
-      # call the named callback in 2 seconds (delay without freezing)
-      Clock.schedule_once(open_browser, 2)
+    def open_browser(dt):
+      webbrowser.open_new(self.controller.pe_url)
+
+    # call the named callback in 2 seconds (delay without freezing)
+    Clock.schedule_once(open_browser, 2)
 
 
     
@@ -316,14 +334,7 @@ class MainScreen(Screen):
 #      #self.add_widget(self.docker_image_button)
 #      dropdown.bind(on_select=lambda instance, x: setattr(self.docker_image_button, 'text', x))  
 
-class Settings:
-  __shared_state = {}
-  start_automatically = True
-  kill_orphans = True
-  use_latest_image = True
 
-  def __init__(self):
-    self.__dict__ = self.__shared_state  
 
 # borg class, see http://code.activestate.com/recipes/66531-singleton-we-dont-need-no-stinkin-singleton-the-bo/
 class Controller:
@@ -410,12 +421,7 @@ class Controller:
         self.docker_url = kwargs['base_url'] 
 
         self.cli = Client(**kwargs)
-        self.refresh_images()
-        self.app.update_ui_images()
-        
-        # ready for action, enable buttons
-        self.app.toggle_action_layout(True)
-        
+
         # stop any existing container (eg if we were killed)
         try:
           if self.cli.inspect_container(self.DOCKER_CONTAINER):
@@ -426,6 +432,13 @@ class Controller:
               self.logger.info("reusing existing container")
         except docker.errors.NotFound:
           self.logger.info("container not running, OK to start new one")
+                
+        self.refresh_images()
+        self.app.update_ui_images()
+        
+        # ready for action, enable buttons
+        self.app.toggle_action_layout(True)
+        
     else:
       # no docker machine
       self.app.error("Unable to start docker :*(")
@@ -493,7 +506,9 @@ class Controller:
   def start_pe(self):
     status = False
     selected_image = self.app.get_selected_image()
-    if not self.container_alive():
+    if self.container_alive():
+      status = True
+    else:
       if selected_image.startswith(self.DOCKER_IMAGE_PATTERN):
         self.container = self.cli.create_container(
           image=selected_image,
@@ -536,7 +551,8 @@ class Controller:
         status = True
       else:
         self.app.error("Please select an image from the list first")
-      return status
+
+    return status
 
   def refresh_images(self):
     self.update_local_images()
@@ -617,41 +633,37 @@ class PeKitApp(App):
     
   def pe_console(self):
     print("pe_console clicked!")
-    if self.controller.start_pe():
-      self.info("Launching browser, please accept the certificate and wait approximately 2 minutes.\n  When the console loads, the username is 'admin' and the password is 'aaaaaaaa'")
+    self.info("Launching browser, please accept the certificate and wait approximately 2 minutes.\n  When the console loads, the username is 'admin' and the password is 'aaaaaaaa'")
 
-      def open_browser(dt):
-        webbrowser.open_new(self.controller.pe_url)
+    def open_browser(dt):
+      webbrowser.open_new(self.controller.pe_url)
 
-      # call the named callback in 2 seconds (delay without freezing)
-      Clock.schedule_once(open_browser, 2)
+    # call the named callback in 2 seconds (delay without freezing)
+    Clock.schedule_once(open_browser, 2)
 
   def pe_terminal(self):
-    if self.controller.start_pe():
-      self.info("Launching terminal, please lookout for a new window")
+    self.info("Launching terminal, please lookout for a new window")
 
-      def open_terminal(dt):
-        Utils.docker_terminal("docker exec -ti {name} bash".format(
-          name=Controller.DOCKER_CONTAINER,
-        ))
-      
-      # call the named callback in 2 seconds (delay without freezing)
-      Clock.schedule_once(open_terminal, 2)
+    def open_terminal(dt):
+      Utils.docker_terminal("docker exec -ti {name} bash".format(
+        name=Controller.DOCKER_CONTAINER,
+      ))
+
+    # call the named callback in 2 seconds (delay without freezing)
+    Clock.schedule_once(open_terminal, 2)
 
   def dockerbuild(self):
-    if self.controller.start_pe():
-      self.info("Launching dockerbuild - have fun :)")
+    self.info("Launching dockerbuild - have fun :)")
 
-      def open_browser(dt):
-        webbrowser.open_new(self.controller.dockerbuild_url)
+    def open_browser(dt):
+      webbrowser.open_new(self.controller.dockerbuild_url)
 
-      # call the named callback in 2 seconds (delay without freezing)
-      Clock.schedule_once(open_browser, 2)
+    # call the named callback in 2 seconds (delay without freezing)
+    Clock.schedule_once(open_browser, 2)
         
   def run_puppet(self):
-    if self.controller.start_pe():
-      self.info("running puppet on master")
-      self.controller.run_puppet()
+    self.info("running puppet on master")
+    self.controller.run_puppet()
 
   def build(self):
     self.controller = Controller()
@@ -727,10 +739,17 @@ class PeKitApp(App):
 
     if pe_status == "running":
       pe_status_icon = "icons/puppet.png"
+      self.root.get_screen("main").console_button.disabled = False
+      self.root.get_screen("main").terminal_button.disabled = False      
     elif pe_status == "loading":
       pe_status_icon = "icons/wait.png"
+      self.root.get_screen("main").console_button.disabled = True
+      self.root.get_screen("main").terminal_button.disabled = False
     else:
       pe_status_icon = "icons/disabled.png"
+      self.root.get_screen("main").console_button.disabled = True
+      self.root.get_screen("main").terminal_button.disabled = True
+
     
       
     self.root.get_screen("main").docker_status_image.source = daemon_icon
