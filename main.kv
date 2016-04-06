@@ -99,37 +99,43 @@ ScreenManagement:
                 id: container_status_label
                 text: '...'
                 size_hint: (0.4, 1)
-            Button:
-                on_release: app.controller.stop_docker_containers()
-                #size_hint: (None, None)
-                size_hint: (0.1, 1)
-                width: dp(40)
-                height: dp(40)
+            # start/stop container
+            GridLayout:
+                size_hint: (0.2, 0.5)
+                cols: 3
+                Button:
+                    on_release: app.controller.toggle_docker_container()
+                    size_hint: (None, None)
+                    #size_hint: (0.1, 1)
+                    #width: dp(40)
+                    #height: dp(40)
+                    Image:
+                        id: container_delete_image
+                        allow_stretch: True
+                        center_x: self.parent.center_x
+                        center_y: self.parent.center_y
+                        height: dp(40)
+                        width: dp(40)
+                        source: 'icons/play.png'
+
                 Image:
-                    id: container_delete_image
+                    id: pe_status_image
+                    #size_hint: (0.1, 1)
                     allow_stretch: True
-                    center_x: self.parent.center_x
-                    center_y: self.parent.center_y
+                    size_hint_y: None
+                    size_hint_x: None
                     height: dp(40)
                     width: dp(40)
-            Image:
-                id: pe_status_image
-                size_hint: (0.1, 1)
-                allow_stretch: True
-                size_hint_y: None
-                size_hint_x: None
-                height: dp(40)
-                width: dp(40)
-                source: 'icons/disabled.png'                   
-            Image:
-                id: docker_status_image
-                size_hint: (0.1, 1)
-                allow_stretch: True
-                size_hint_y: None
-                size_hint_x: None
-                height: dp(40)
-                width: dp(40)
-                source:  'icons/ok.png'
+                    source: 'icons/disabled.png'                   
+                Image:
+                    id: docker_status_image
+                    #size_hint: (0.1, 1)
+                    allow_stretch: True
+                    size_hint_y: None
+                    size_hint_x: None
+                    height: dp(40)
+                    width: dp(40)
+                    source:  'icons/ok.png'
                 
 
             

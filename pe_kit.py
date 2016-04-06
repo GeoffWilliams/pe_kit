@@ -438,6 +438,13 @@ class Controller:
         pass
     return alive    
   
+  def toggle_docker_container(self):
+    self.logger.debug("toggle_docker_container clicked")
+    if self.container_alive():
+      # !FIXME - double validation here
+      self.stop_docker_containers()
+    else:
+      self.start_pe()
   
   def stop_docker_containers(self):
     if self.container_alive():
@@ -679,7 +686,7 @@ class PeKitApp(App):
   def daemon_monitor(self, x):
     alive = self.controller.daemon_alive()
     container_status = "not running"
-    container_icon = ""
+    container_icon = "icons/play.png"
     pe_status = "stopped"
     
     if alive:
