@@ -22,7 +22,6 @@ import time
 import subprocess
 import os
 import logging
-
 from kivy.lang import Builder
 from kivy.uix.settings import (SettingsWithSidebar,
                                SettingsWithSpinner,
@@ -31,6 +30,11 @@ from kivy.uix.screenmanager import ScreenManager, Screen, FadeTransition
 from kivy.properties import ObjectProperty
 
 class DockerMachine():
+  """
+  DockerMachine
+  
+  Control the default docker-machine instance (boot2docker)
+  """
 
   logger = logging.getLogger(__name__)
   
@@ -146,6 +150,11 @@ class SettingsScreen(Screen):
     
 
 class MainScreen(Screen):
+  """
+  MainScreen
+  
+  The main screen of the application
+  """
 
   logger = logging.getLogger(__name__)
 
@@ -161,70 +170,6 @@ class MainScreen(Screen):
     super(MainScreen, self).__init__(**kwargs)
     self.controller = Controller()
 
-    self.orientation = "vertical"
-    self.spacing = 30,30
-    
-    # banner
-    #banner_layout = BoxLayout() #    AnchorLayout(size_hint=(1, 0.2))
-    #banner_layout.add_widget(Label(text="PE Kit", font_size="40sp", size_hint=(0.8,1)))
-    #settings_button = Button(text='Settings')
-    #settings_button.bind(on_press=self.controller.app.open_settings)
-    #banner_layout.add_widget(settings_button)
-    
-    #self.add_widget(banner_layout)    
-
-    # image downloading
-    #self.download_images_layout = BoxLayout(size_hint=(1, 0.3), padding=20, orientation="vertical")
-    #self.add_widget(self.download_images_layout)
-    #self.download_images_layout.borders = (2, 'solid', (1,1,1,1.))
-
-    # PE image selection
-    #images_layout = BoxLayout(size_hint=(1, 0.3), padding=20)
-    #images_layout.add_widget(Label(text="PE Version", size_hint=(0.3, 0.5)))
-    #self.docker_image_button = Button(text='Available images', size_hint=(0.6, 0.5))
-    #images_layout.add_widget(self.docker_image_button)
-    #self.add_widget(images_layout)
-
-    # actions (contains terminal and console)
-    #actions_layout = BoxLayout(size_hint=(1, 0.3), padding=20, spacing=50)
-
-    # terminal 
-    #self.pe_terminal_button = Button(text="Terminal", size_hint=(0.3, 0.5))
-    #self.pe_terminal_button.bind(on_press=self.pe_terminal)
-    #actions_layout.add_widget(self.pe_terminal_button)
-
-    # console
-    #self.pe_console_button = Button(text="Console", size_hint=(0.3, 0.5))
-    #self.pe_console_button.bind(on_press=self.pe_console)
-    #actions_layout.add_widget(self.pe_console_button)
-  
-    # run puppet
-    #self.run_puppet_button = Button(text="Run Puppet", size_hint=(0.3, 0.5))
-    #self.run_puppet_button.bind(on_press=self.run_puppet)
-    #actions_layout.add_widget(self.run_puppet_button)
-  
-    #self.add_widget(actions_layout)
-    
-    # advanced (not for sales ;-)
-    #self.advanced_layout = BoxLayout(size_hint=(1, 0.3), padding=20, spacing=50)
-    
-    # dockerbuild
-    #self.dockerbuild_button = Button(text="Dockerbuild", size_hint=(0.3, 0.5))
-    #self.dockerbuild_button.bind(on_press=self.dockerbuild)
-    #self.advanced_layout.add_widget(self.dockerbuild_button)
-    
-    # log messages
-    #self.log_textinput = TextInput(row=20, col=60, text="")
-    #toggle_log_button = Button(text="Show/Hide debug log", size_hint=(0.3, 0.5))
-    #toggle_log_button.bind(on_press=self.toggle_log)
-    #self.advanced_layout.add_widget(toggle_log_button)
-    
-    #self.add_widget(self.advanced_layout)
-
-
-
-      
-    
   def toggle_log(self, x):
     if self.log_textinput in self.advanced_layout.children:
       self.advanced_layout.remove_widget(self.log_textinput)
@@ -263,18 +208,6 @@ class MainScreen(Screen):
 #    t.start()
 #    time.sleep(1)
 #
-#    
-#    # remove any existing children to handle multiple calls
-#    self.download_images_layout.clear_widgets()
-#    
-#    new_images = False
-#    images = json.load(
-#      urllib2.urlopen(
-#        "https://registry.hub.docker.com/v2/repositories/%s/tags/" % 
-#        self.DOCKER_IMAGE_PATTERN
-#      )
-#    )
-#    for tags in images["results"]:
 #      # if image is already downloaded, don't list it as available for download
 #      tag = tags["name"]
 #      if not self.tag_exists_locally(tag):
@@ -311,59 +244,7 @@ class MainScreen(Screen):
     if message is not None:
       updated = current + level + message + "\n"
       self.log_textinput.text = updated
-      
-
-#  def start_pe(self):
-#    if not self.container_running:
-#      if self.get_selected_image().startswith(self.DOCKER_IMAGE_PATTERN):
-#        self.container = self.cli.create_container(
-#          image=self.get_selected_image(),
-#          name=self.DOCKER_CONTAINER,
-#          hostname=self.PE_HOSTNAME,
-#          detach=True,
-#          volumes = [
-#              "/sys/fs/cgroup",
-#          ],
-#        )
-#        resp = self.cli.start(
-#          container=self.container.get('Id'), 
-#          privileged=True,
-#          publish_all_ports=True,
-#        )
-#        self.log(resp)
-#        self.container_running = True
-#
-#        # inspect the container and get the port mapping
-#        container_info = self.cli.inspect_container(self.container.get("Id"))
-#        pp = pprint.PrettyPrinter()
-#        pp.pprint(container_info)
-#        self.log(pp.pformat(container_info))
-#
-#        self.pe_console_port = container_info["NetworkSettings"]["Ports"]["443/tcp"][0]["HostPort"]
-#        self.dockerbuild_port = container_info["NetworkSettings"]["Ports"]["9000/tcp"][0]["HostPort"]
-#
-#        parsed = urlparse(self.docker_url)
-#        
-#        # update the URL to browse to for PE console
-#        self.pe_url = parsed._replace(
-#          netloc="{}:{}".format(parsed.hostname, self.pe_console_port)
-#        ).geturl()
-#        
-#        # update the URL for dockerbuild
-#        self.dockerbuild_url = parsed._replace(
-#          scheme='http',
-#          netloc="{}:{}".format(parsed.hostname, self.dockerbuild_port)
-#        ).geturl()
-#      else:
-#        self.error("Please select an image from the list first")
-#    return self.container_running
-
-
-
-
-
-
-    
+          
   def pe_console(self, instance):
     if self.controller.start_pe():
       self.info("Launching browser, please accept the certificate and wait approximately 2 minutes.\n  When the console loads, the username is 'admin' and the password is 'aaaaaaaa'")
@@ -426,6 +307,10 @@ class MainScreen(Screen):
 
 # borg class, see http://code.activestate.com/recipes/66531-singleton-we-dont-need-no-stinkin-singleton-the-bo/
 class Controller:
+  """
+  Controller
+  Separate off the control functions to remove dependency on kivy
+  """
   __shared_state = {}
   
   logger = logging.getLogger(__name__)
@@ -587,9 +472,14 @@ class Controller:
     ))
   
 class ScreenManagement(ScreenManager):
+  """Screen management binding class"""
     pass
   
 class PeKitApp(App):
+  """
+  PeKitApp
+  The main application
+  """
   logger = logging.getLogger(__name__)
     
   def update_ui_images(self):
@@ -636,8 +526,6 @@ class PeKitApp(App):
       self.info("running puppet on master")
       self.controller.run_puppet()
 
-        
-    
   def build(self):
     self.controller = Controller()
     self.controller.start_docker_daemon()
@@ -645,7 +533,6 @@ class PeKitApp(App):
 
     return Builder.load_file("main.kv")
 
-  
   def on_start(self):
     pass
 
