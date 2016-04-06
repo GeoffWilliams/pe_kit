@@ -1,4 +1,8 @@
-#!/usr/bin/env kivy 
+#!/usr/bin/env kivy
+import logging
+logging.basicConfig(level=logging.DEBUG)
+
+
 from kivy.app import App
 from kivy.clock import Clock
 from kivy.uix.boxlayout import BoxLayout
@@ -21,8 +25,9 @@ import threading
 import time
 import subprocess
 import os
-import logging
 import docker.errors
+#import requests.packages.urllib3 as urllib3
+import requests.exceptions
 from kivy.lang import Builder
 from kivy.uix.settings import (SettingsWithSidebar,
                                SettingsWithSpinner,
@@ -30,7 +35,6 @@ from kivy.uix.settings import (SettingsWithSidebar,
 from kivy.uix.screenmanager import ScreenManager, Screen, FadeTransition
 from kivy.properties import ObjectProperty
 
-logging.basicConfig(level=logging.DEBUG)    
 
 
 class DockerMachine():
@@ -51,10 +55,14 @@ class DockerMachine():
     # start the daemon if its not already running
     started = False
     if self.status() != "Running":
-      out = subprocess.check_output(["docker-machine", "start"])
-      if self.status() == "Running":
-        self.logger.info("docker-machine started OK")
-        started = True
+      try:
+        out = subprocess.check_output(["docker-machine", "start"])
+        if self.status() == "Running":
+          self.logger.info("docker-machine started OK")
+          started = True
+      except CalledProcessError as e:
+        self.logger.error("failed to start docker", e)
+        
     else:
       started = True
       self.logger.info("docker-machine already running")
@@ -151,10 +159,12 @@ class MainScreen(Screen):
   """
 
   logger = logging.getLogger(__name__)  
-  status_label            = ObjectProperty(None)
   advanced_layout         = ObjectProperty(None)
   advanced_layout_holder  = ObjectProperty(None)
-  
+  app_status_label        = ObjectProperty(None)
+  container_status_label  = ObjectProperty(None)
+  container_delete_image  = ObjectProperty(None)
+  docker_status_image     = ObjectProperty(None)
 
   def __init__(self, **kwargs):
     super(MainScreen, self).__init__(**kwargs)
@@ -373,7 +383,22 @@ class Controller:
     else:
       # no docker machine
       self.app.error("Unable to start docker :*(")
- 
+
+  def daemon_alive(self):
+    if self.cli:
+      try:
+        version_info = self.cli.version()
+        if "Version" in version_info:
+          alive = True
+        else:
+          alive = False
+      except requests.exceptions.ConnectionError:
+        self.logger.error("urllib3 error talking to docker daemon")
+        alive = False
+    else:
+      alive = False
+    return alive
+  
   def stop_docker_containers(self):
     if self.container_running:
       self.cli.remove_container(container=self.container.get('Id'), force=True)
@@ -510,6 +535,7 @@ class PeKitApp(App):
   The main application
   """
   logger = logging.getLogger(__name__)
+  app_running = True
   
   
   def toggle_advanced(self):
@@ -569,8 +595,15 @@ class PeKitApp(App):
   def on_start(self):
     # hide advanced by default
     self.root.get_screen("main").toggle_advanced()
+    
+    Clock.schedule_interval(self.daemon_monitor, 5)
+    
+#    t = threading.Thread(target=self.daemon_monitor)
+#    t.start()
+#    t.start()self.daemon_monitor()
 
   def on_stop(self):
+    self.app_running = False
     self.controller.stop_docker_containers()
     
   def get_selected_image(self):
@@ -598,8 +631,19 @@ class PeKitApp(App):
     return popup
 
   def info(self, message):
-    return self.popup(title='Information', message=message)  
+    return self.popup(title='Information', message=message)
   
+  def daemon_monitor(self, x):
+    alive = self.controller.daemon_alive()
+
+    if alive:
+      self.logger.debug("docker daemon ok :)")
+      icon = "icons/ok.png"
+    else:
+      self.logger.error("docker daemon dead!")
+      icon = "icons/error.png"
+
+    self.root.get_screen("main").docker_status_image.source = icon
   
 PeKitApp().run()
 # App.get_running_app()

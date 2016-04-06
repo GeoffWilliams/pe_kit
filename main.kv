@@ -6,12 +6,16 @@ ScreenManagement:
 <MainScreen>:
     name: 'main'
     
-    status_label: status_label
     advanced_layout: advanced_layout
     advanced_layout_holder: advanced_layout_holder
-
+    app_status_label: app_status_label
+    container_status_label:container_status_label
+    container_delete_image: container_delete_image
+    docker_status_image: docker_status_image
+    
     BoxLayout:
         orientation: 'vertical'
+        padding: 20
         
         BoxLayout:
             # PE Kit banner
@@ -25,11 +29,14 @@ ScreenManagement:
             Button:
                 text: 'Settings'
                 size_hint: (0.2,1)
+                halign: 'center'
+                valign: 'bottom'
+                text_size: (self.width, self.height - 40)
                 on_release: app.root.current = 'settings'
                 Image:
                     source: 'icons/settings.png'
                     x: self.parent.x + (self.parent.width/2) - (self.width/2)
-                    y: self.parent.y + (self.parent.height/4) - (self.height/2)
+                    y: self.parent.y + (self.parent.height/2)
                     
         BoxLayout:
             # console    
@@ -48,6 +55,7 @@ ScreenManagement:
         Button:
             text: 'Toggle advanced actions'
             on_press: app.toggle_advanced()
+            size_hint: (0.4, 0.5)
         
         BoxLayout:
             id: advanced_layout_holder
@@ -72,8 +80,24 @@ ScreenManagement:
             Label:
                 text: 'Status:'
             Label:
-                id: status_label
-                text: '...'            
+                id: app_status_label
+                text: '...'
+            Label:
+                id: container_status_label
+                text: '...'
+            Image:
+                id: container_delete_image
+                size: (40,40)
+            Image:
+                id: docker_status_image
+                allow_stretch: True
+                size_hint_y: None
+                size_hint_x: None
+                height: dp(100)
+                width: dp(100)
+                source:  'icons/ok.png'
+                
+
             
 <SettingsScreen>:
     name: 'settings'
