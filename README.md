@@ -7,6 +7,11 @@ how to install python on a mac
 
 # Setup
 1.  Install Docker (https://www.docker.com/products/docker-toolbox)
+  * After install, make a bigger boot2docker image to avoid running out of space, eg:  
+  ```shell
+  docker-machine rm -f default
+  docker-machine create -d virtualbox --virtualbox-disk-size "50000" default
+  ```
 2.  Install Kivy (GUI/Python support) https://kivy.org/#download
   * Follow the MAC setup instructions at https://kivy.org/docs/installation/installation-osx.html
   * Kivy installs all its libraries into a virtualenv shipped in its own 

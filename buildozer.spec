@@ -43,10 +43,10 @@ requirements = kivy,docker-py,python-dateutil
 #garden_requirements =
 
 # (str) Presplash of the application
-#presplash.filename = %(source.dir)s/data/presplash.png
+presplash.filename = %(source.dir)s/icons/presplash.png
 
 # (str) Icon of the application
-icon.filename = %(source.dir)s/icons/puppet.png
+icon.filename = %(source.dir)s/icons/logo.png
 
 # (str) Supported orientation (one of landscape, portrait or all)
 orientation = landscape
