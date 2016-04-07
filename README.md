@@ -13,7 +13,7 @@ how to install python on a mac
     installer.  The docker api needs to be installed into this environment:
     1.  cd /Applications/Kivy.app/Contents/Resources/venv 
     2.  source bin/activate
-    3.  pip install docker-py datetime
+    3.  pip install docker-py python-dateutil
 
 **IMPORTANT! do not use zshell!!!**
 
