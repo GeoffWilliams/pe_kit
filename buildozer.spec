@@ -46,7 +46,7 @@ requirements = kivy,docker-py,python-dateutil
 #presplash.filename = %(source.dir)s/data/presplash.png
 
 # (str) Icon of the application
-icon.filename = %(source.dir)s/data/icons/puppet.png
+icon.filename = %(source.dir)s/icons/puppet.png
 
 # (str) Supported orientation (one of landscape, portrait or all)
 orientation = landscape
