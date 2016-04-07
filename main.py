@@ -55,6 +55,15 @@ class DockerMachine():
   """
 
   logger = logging.getLogger(__name__)
+
+  def __init__(self):
+    self.logger.info("adjusted path for /usr/local/bin")
+    os.environ['PATH'] = "/usr/local/bin/:" + os.environ['PATH']
+  
+  def run_cmd(self, *command, **options):
+    return subprocess.check_output(env={
+      'PATH': "/usr/local/bin/:" + os.environ['PATH']
+    }, *command, **options)
   
   def status(self):
     status = subprocess.check_output(["docker-machine", "status"]).strip()
