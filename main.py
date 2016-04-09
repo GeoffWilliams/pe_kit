@@ -175,16 +175,21 @@ class SettingsScreen(Screen):
       icon = "icons/error.png"
       
     button = Button()
-    image = Image()
+    button.background_normal = icon
+    button.border = (0, 0, 0, 0)
+    button.size_hint = (None, None)
+    button.width = "20dp"
+    button.height = "20dp"
+    #image = Image()
     #button.add_widget(image)
-    image.allow_stretch = True
+    #image.allow_stretch = True
     #image.center_x = self.parent.center_x
     #image.center_y = self.parent.center_y
-    image.height = "40dp"
-    image.width = "40dp"
-    image.source = icon
+    #image.height = "40dp"
+    #image.width = "40dp"
+    #image.source = icon
     
-    return image
+    return button
     
 #    self.orientation = "vertical"
 #    self.spacing = 30,30  
@@ -193,6 +198,10 @@ class SettingsScreen(Screen):
       self.image_management_layout.clear_widgets()
       for image in self.controller.images:
         name_label = Label(text=image["name"])
+        #name_label.size_hint = (None, None)
+        name_label.bind(size=name_label.setter('text_size'))    
+        #name_label.text_size = (None,None)#name_label.size
+        name_label.halign = "left"
         status_button = self.get_image_button(image["status"])
         if image["status"] == "local":
           selected_button = ToggleButton(text="selected", group="image")

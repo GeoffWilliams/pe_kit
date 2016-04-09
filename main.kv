@@ -1,4 +1,11 @@
 #:kivy 1.0
+<Widget>:
+    canvas.after:
+        Line:
+            rectangle: self.x+1,self.y+1,self.width-1,self.height-1
+            dash_offset: 5
+            dash_length: 3
+
 ScreenManagement:
     MainScreen:
     SettingsScreen:
@@ -25,25 +32,22 @@ ScreenManagement:
         padding: 20
         
         BoxLayout:
+            size_hint: (1, 0.2)
+            
             # PE Kit banner
             AnchorLayout:
-                size_hint: (0.8,1) 
+                size_hint: (0.8, 1) 
                 Label:
                     text: 'PE Kit'
                     font_size: '40sp'
                              
             # settings
+            #AnchorLayout:
             Button:
-                text: 'Settings'
-                size_hint: (0.2,1)
-                halign: 'center'
-                valign: 'bottom'
-                text_size: (self.width, self.height - 40)
+                size_hint: (None, None)
+                border: (0, 0, 0, 0)
                 on_release: app.root.current = 'settings'
-                Image:
-                    source: 'icons/settings.png'
-                    x: self.parent.x + (self.parent.width/2) - (self.width/2)
-                    y: self.parent.y + (self.parent.height/2)
+                background_normal: 'icons/settings.png'
                     
         BoxLayout:
             id: action_layout_holder
@@ -91,7 +95,10 @@ ScreenManagement:
         #
         # Status
         #
-        BoxLayout:
+        GridLayout:
+            cols: 6
+            size_hint: (1, 0.2)
+            
             Label:
                 text: 'Status:'
                 size_hint: (0.2, 1)
@@ -104,43 +111,40 @@ ScreenManagement:
                 text: '...'
                 size_hint: (0.4, 1)
             # start/stop container
-            GridLayout:
-                size_hint: (0.2, 0.5)
-                cols: 3
-                Button:
-                    on_release: app.controller.toggle_docker_container()
-                    size_hint: (None, None)
-                    #size_hint: (0.1, 1)
-                    #width: dp(40)
-                    #height: dp(40)
-                    Image:
-                        id: container_delete_image
-                        allow_stretch: True
-                        center_x: self.parent.center_x
-                        center_y: self.parent.center_y
-                        height: dp(40)
-                        width: dp(40)
-                        source: 'icons/play.png'
+            Button:
+                on_release: app.controller.toggle_docker_container()
+                size_hint: (None, None)
+                #size_hint: (0.1, 1)
+                #width: dp(40)
+                #height: dp(40)
+                Image:
+                    id: container_delete_image
+                    allow_stretch: True
+                    center_x: self.parent.center_x
+                    center_y: self.parent.center_y
+                    height: dp(40)
+                    width: dp(40)
+                    source: 'icons/play.png'
 
-                Image:
-                    id: pe_status_image
-                    #size_hint: (0.1, 1)
-                    allow_stretch: True
-                    size_hint_y: None
-                    size_hint_x: None
-                    height: dp(40)
-                    width: dp(40)
-                    source: 'icons/disabled.png'                   
-                Image:
-                    id: docker_status_image
-                    #size_hint: (0.1, 1)
-                    allow_stretch: True
-                    size_hint_y: None
-                    size_hint_x: None
-                    height: dp(40)
-                    width: dp(40)
-                    source:  'icons/ok.png'
-                
+            Image:
+                id: pe_status_image
+                #size_hint: (0.1, 1)
+                allow_stretch: True
+                size_hint_y: None
+                size_hint_x: None
+                height: dp(40)
+                width: dp(40)
+                source: 'icons/disabled.png'                   
+            Image:
+                id: docker_status_image
+                #size_hint: (0.1, 1)
+                allow_stretch: True
+                size_hint_y: None
+                size_hint_x: None
+                height: dp(40)
+                width: dp(40)
+                source:  'icons/ok.png'
+
 
             
 <SettingsScreen>:
@@ -156,23 +160,36 @@ ScreenManagement:
     BoxLayout:
         orientation: 'vertical'
         
+        # banner
         Label:
             text: 'Image management'
-        
+            font_size: '40sp'
+            size_hint: (1, 0.2)
+
         # Image Management
-        GridLayout:
-            cols: 3
-            
-            # header row
-            Label:
-                text: 'Image'
-            Label:
-                text: 'Status'
-            Label:
-                text: 'Selected'
-        GridLayout:
-            id: image_management_layout
-            cols: 3
+#        BoxLayout:
+#            orientation: 'vertical'
+#            GridLayout:
+#                cols: 3
+#                cols_minimum: { 0: dp(600), 1: dp(20), 2: dp(20)}
+#                size_hint: (1,0.2)
+#                # header row
+#                Label:
+#                    text: 'Image'
+#                    halign: 'left'
+#
+#                Label:
+#                    text: ''
+#Label:
+#                    text: 'Selected'
+        ScrollView:
+            size: self.size        
+            GridLayout:
+                id: image_management_layout
+                cols: 3
+                cols_minimum: { 0: dp(600), 1: dp(30), 2: dp(30)}
+                row_default_height: dp(20)
+
 
         #
         # Checkboxes/Settings file
@@ -210,3 +227,4 @@ ScreenManagement:
         Button:
             on_release: root.back()
             text: 'Back'
+            size_hint: (1, 0.2)
