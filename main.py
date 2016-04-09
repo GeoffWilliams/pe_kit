@@ -244,6 +244,26 @@ class MainScreen(Screen):
     super(MainScreen, self).__init__(**kwargs)
     self.controller = Controller()
     
+  def pe_status_info(self):
+    uptime = self.controller.container_alive()
+    if uptime:
+      pe_status = self.controller.pe_status()
+      message = "Docker container is alive, up {uptime} seconds.  PE is {pe_status}".format(
+        uptime = uptime,
+        pe_status = pe_status
+      )
+      pe_status = self.controller.pe_status()
+    else:
+      message = "Docker container is not running"
+    App.get_running_app().info(message)
+    
+  def docker_status_info(self):
+    if self.controller.daemon_alive():
+      message = "Docker daemon is alive"
+    else:
+      message = "Docker daemon is dead"
+    App.get_running_app().info(message)
+    
   def toggle_action_layout(self, show):
     if show:
       # hidden -> show
@@ -325,9 +345,6 @@ class Controller:
   
   # images avaiable for downloading
   downloadable_images = []
-  
-  # images to download
-  download_images = []
   
   # images available locally
   local_images = []
@@ -514,22 +531,7 @@ class Controller:
     
     # self-monitoring/status in own thread
     self.logger.info("starting update_status in own thread")
-    threading.Thread(target=self.update_status).start()
-    
-  def download_selected_images(self, x):
-    for image in self.download_images:
-      self.logger.info("download " + image)
-      
-      #t = threading.Thread(target=update_message)
-#    t.start()
-      self.cli.pull(
-        repository = self.DOCKER_IMAGE_PATTERN,
-        tag = image
-      )
-      
-    # update the list of images still available for download/available for use
-    self.update_downloadable_images()
-    self.update_local_images()        
+    threading.Thread(target=self.update_status).start() 
     
   def start_pe(self):
     status = False
@@ -803,7 +805,7 @@ class PeKitApp(App):
 
     
       
-    self.root.get_screen("main").docker_status_image.source = daemon_icon
+    self.root.get_screen("main").docker_status_image.background_normal = daemon_icon
     self.root.get_screen("main").container_delete_image.source = container_icon
     self.root.get_screen("main").container_status_label.text = container_status
     self.root.get_screen("main").pe_status_image.source = pe_status_icon

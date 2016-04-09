@@ -114,9 +114,6 @@ ScreenManagement:
             Button:
                 on_release: app.controller.toggle_docker_container()
                 size_hint: (None, None)
-                #size_hint: (0.1, 1)
-                #width: dp(40)
-                #height: dp(40)
                 Image:
                     id: container_delete_image
                     allow_stretch: True
@@ -126,27 +123,21 @@ ScreenManagement:
                     width: dp(40)
                     source: 'icons/play.png'
 
-            Image:
+            Button:
                 id: pe_status_image
-                #size_hint: (0.1, 1)
-                allow_stretch: True
                 size_hint_y: None
                 size_hint_x: None
-                height: dp(40)
-                width: dp(40)
-                source: 'icons/disabled.png'
-                on_touch_down: app.info("Container status - red=stopped, timer=loading, puppet=running")
+                background_normal: 'icons/disabled.png'
+                border: (0, 0, 0, 0)
+                on_release: root.pe_status_info()
 
-            Image:
+            Button:
                 id: docker_status_image
-                #size_hint: (0.1, 1)
-                allow_stretch: True
                 size_hint_y: None
                 size_hint_x: None
-                height: dp(40)
-                width: dp(40)
-                source:  'icons/ok.png'
-                on_touch_down: app.info("Docker daemon status - green=running, red=broken")
+                background_normal:  'icons/ok.png'
+                border: (0, 0, 0, 0)
+                on_release: root.docker_status_info()
 
             
 <SettingsScreen>:
