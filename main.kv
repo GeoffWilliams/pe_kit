@@ -147,53 +147,65 @@ ScreenManagement:
     name: 'settings'
 
     # widget/class variable mapping
+    image_management_layout: image_management_layout
+    use_latest_image_checkbox: use_latest_image_checkbox
     start_automatically_checkbox: start_automatically_checkbox
     kill_orphans_checkbox: kill_orphans_checkbox
     shutdown_on_exit_checkbox: shutdown_on_exit_checkbox
-    download_images_layout: download_images_layout
-    selected_image_button: selected_image_button
 
     BoxLayout:
         orientation: 'vertical'
+        
+        Label:
+            text: 'Image management'
+        
+        # Image Management
+        GridLayout:
+            cols: 3
+            
+            # header row
+            Label:
+                text: 'Image'
+            Label:
+                text: 'Status'
+            Label:
+                text: 'Selected'
+        GridLayout:
+            id: image_management_layout
+            cols: 3
 
-        # start automatically
-        BoxLayout:
+        #
+        # Checkboxes/Settings file
+        # 
+
+        # use latest image
+        GridLayout:
+            cols: 2
+            
+            CheckBox:
+                id: use_latest_image_checkbox
+            Label:
+                text: 'Use latest image'
+        
+            # start automatically
             CheckBox:
                 id: start_automatically_checkbox
             Label:
                 text: 'Start container automatically'
             
-        # kill orphans
-        BoxLayout:
+            # kill orphans
             CheckBox:
                 id: kill_orphans_checkbox
 
             Label:
                 text: 'Kill orphaned containers on startup'
                 
-        # Shutdown on exit
-        BoxLayout:
+            # Shutdown on exit
             CheckBox:
                 id: shutdown_on_exit_checkbox
             
             Label:
                 text: 'Shutdown PE on on exit'
-                
-        # downloadable images
-        BoxLayout:
-            id: download_images_layout
-            padding: 20
-            orientation: 'vertical'
-
-        # selected image
-        BoxLayout:
-            Label:
-                text: "Selected image"
-                
-            Button:
-                id: selected_image_button
-                text: "Available images"
-              
 
         Button:
             on_release: root.back()

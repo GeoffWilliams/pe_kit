@@ -8,7 +8,9 @@ from kivy.clock import Clock
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.anchorlayout import AnchorLayout
 from kivy.uix.label import Label
+from kivy.uix.image import Image
 from kivy.uix.button import Button
+from kivy.uix.togglebutton import ToggleButton
 from kivy.uix.textinput import TextInput
 from kivy.uix.dropdown import DropDown
 from kivy.uix.popup import Popup
@@ -123,6 +125,8 @@ class DockerMachine():
 class SettingsScreen(Screen):
   
   logger = logging.getLogger(__name__)
+  image_management_layout       = ObjectProperty(None)
+  use_latest_image_checkbox     = ObjectProperty(None)
   start_automatically_checkbox  = ObjectProperty(None)
   kill_orphans_checkbox         = ObjectProperty(None)
   download_images_layout        = ObjectProperty(None)
@@ -136,12 +140,17 @@ class SettingsScreen(Screen):
     self.controller = Controller()
     
   def on_start(self):
+    self.use_latest_image_checkbox.active     = self.settings.use_latest_image
     self.start_automatically_checkbox.active  = self.settings.start_automatically 
     self.kill_orphans_checkbox.active         = self.settings.kill_orphans
     self.shutdown_on_exit_checkbox.active     = self.settings.shutdown_on_exit
     
+    # periodically refresh the image managment grid if we need to
+    Clock.schedule_interval(self.update_image_managment, 0.5)
+    
   def back(self):
     """save settings and go back"""
+    self.settings.use_latest_image    = self.use_latest_image_checkbox.active
     self.settings.start_automatically = self.start_automatically_checkbox.active
     self.settings.kill_orphans        = self.kill_orphans_checkbox.active
     self.settings.shutdown_on_exit    = self.shutdown_on_exit_checkbox.active
@@ -150,71 +159,105 @@ class SettingsScreen(Screen):
     App.get_running_app().root.current = 'main'
     
     
-  def on_download_checkbox(self, checkbox, value):
-    if value:
-      self.controller.download_images.append(checkbox.tag)
-    else:
-      self.controller.download_images.remove(checkbox.tag)    
+#  def on_download_checkbox(self, checkbox, value):
+#    if value:
+#      self.controller.download_images.append(checkbox.tag)
+#    else:
+#      self.controller.download_images.remove(checkbox.tag)    
     
-
+  def get_image_button(self, status):
+    if status == "downloadable":
+      icon = "icons/download.png"
+    elif status == "local":
+      icon = "icons/delete.png"
+    else:
+      # no idea, broken
+      icon = "icons/error.png"
+      
+    button = Button()
+    image = Image()
+    #button.add_widget(image)
+    image.allow_stretch = True
+    #image.center_x = self.parent.center_x
+    #image.center_y = self.parent.center_y
+    image.height = "40dp"
+    image.width = "40dp"
+    image.source = icon
+    
+    return image
     
 #    self.orientation = "vertical"
 #    self.spacing = 30,30  
-  def update_ui_images(self):
+  def update_image_managment(self, x):
+    if self.controller.images_refreshed:
+      self.image_management_layout.clear_widgets()
+      for image in self.controller.images:
+        name_label = Label(text=image["name"])
+        status_button = self.get_image_button(image["status"])
+        if image["status"] == "local":
+          selected_button = ToggleButton(text="selected", group="image")
+        else:
+          # use a blank label as a spacer
+          selected_button = Label()
+          
+        self.image_management_layout.add_widget(name_label)
+        self.image_management_layout.add_widget(status_button)
+        self.image_management_layout.add_widget(selected_button)
+      self.controller.images_refreshed = False
     # remove any existing children to handle multiple calls
-    self.download_images_layout.clear_widgets()
-
-    if len(self.controller.downloadable_images) > 0:
-      for tag in self.controller.downloadable_images:
-        row_layout = BoxLayout()
-
-        # checkbox
-        checkbox = CheckBox()
-        checkbox.bind(active=self.on_download_checkbox)
-        checkbox.tag = tag
-        row_layout.add_widget(checkbox)
-
-
-        # label
-        image_label = Label(text=tag)
-        row_layout.add_widget(image_label)
-        self.logger.info(tag)
-
-        self.download_images_layout.add_widget(row_layout)
-
-      download_button = Button(text="Download selected")
-      download_button.bind(on_press=self.controller.download_selected_images)
-      self.download_images_layout.add_widget(download_button)
-    else:    
-      self.download_images_layout.add_widget(Label(text="All images up-to-date"))
-      
-    # close the updating message or it will hang around waiting for user
-    # to click OK
-    #popup[0].dismiss()
-
-    # --------
-    dropdown = DropDown()
-    for image_name in self.controller.local_images:
-      btn = Button(text=image_name, size_hint_y=None, height=44)
-      btn.bind(on_release=lambda btn: dropdown.select(btn.text))
-      dropdown.add_widget(btn)
-
-    self.selected_image_button.bind(on_release=dropdown.open)
-    #self.add_widget(self.docker_image_button)
-    dropdown.bind(on_select=lambda instance, x: setattr(self.selected_image_button, 'text', x))  
-
-    # select the first image in the list (most recent)
-    if len(self.controller.local_images) > 0:
-      self.logger.debug("selecting image " + self.controller.local_images[0])
-      self.selected_image_button.text = self.controller.local_images[0]
-      
-      # start automatically if configured
-      if self.settings.start_automatically:
-        self.logger.debug("automatically starting container (settings)")
-        self.controller.start_pe()
-      
-    else:
-      self.error("no images available")
+#    self.download_images_layout.clear_widgets()
+#
+#    if len(self.controller.downloadable_images) > 0:
+#      for tag in self.controller.downloadable_images:
+#        row_layout = BoxLayout()
+#
+#        # checkbox
+#        checkbox = CheckBox()
+#        checkbox.bind(active=self.on_download_checkbox)
+#        checkbox.tag = tag
+#        row_layout.add_widget(checkbox)
+#
+#
+#        # label
+#        image_label = Label(text=tag)
+#        row_layout.add_widget(image_label)
+#        self.logger.info(tag)
+#
+#        self.download_images_layout.add_widget(row_layout)
+#
+#      download_button = Button(text="Download selected")
+#      download_button.bind(on_press=self.controller.download_selected_images)
+#      self.download_images_layout.add_widget(download_button)
+#    else:    
+#      self.download_images_layout.add_widget(Label(text="All images up-to-date"))
+#      
+#    # close the updating message or it will hang around waiting for user
+#    # to click OK
+#    #popup[0].dismiss()
+#
+#    # --------
+#    dropdown = DropDown()
+#    for image_name in self.controller.local_images:
+#      btn = Button(text=image_name, size_hint_y=None, height=44)
+#      btn.bind(on_release=lambda btn: dropdown.select(btn.text))
+#      dropdown.add_widget(btn)
+#
+#    self.selected_image_button.bind(on_release=dropdown.open)
+#    #self.add_widget(self.docker_image_button)
+#    dropdown.bind(on_select=lambda instance, x: setattr(self.selected_image_button, 'text', x))  
+#
+#    # select the first image in the list (most recent)
+#    if len(self.controller.local_images) > 0:
+#      self.logger.debug("selecting image " + self.controller.local_images[0])
+#      self.selected_image_button.text = self.controller.local_images[0]
+#      
+#      # start automatically if configured
+#      if self.settings.start_automatically:
+#        self.logger.debug("automatically starting container (settings)")
+#        self.controller.start_pe()
+#      
+#    else:
+#      self.error("no images available")
     
 
 class MainScreen(Screen):
@@ -390,12 +433,22 @@ class Controller:
   settings = Settings()
   container_status = False
   daemon_status = False
+  
+  # app/program is running - threads use this to see if they should 
+  # continue executing
   running = True
+  
+  # When new images are loaded, this flag is set true to flag the GUI
+  # to refresh.  We must use a variable to communicate with the GUI thread
+  # because since the update takes place in its own thread, we can't let
+  # it interact with the GUI thread or we'll get segfaults
+  images_refreshed = False
   
   def __init__(self):
     self.__dict__ = self.__shared_state
     
   def update_status(self):
+    """daemon thread to check if docker and container are alive"""
     while (self.running):
       self.daemon_status = self.daemon_alive()
 
@@ -471,8 +524,11 @@ class Controller:
           self.logger.info("container not running, OK to start new one")
                 
         self.refresh_images()
-        self.app.update_ui_images()
         
+        # tell GUI to refresh images
+        self.images_refreshed = True
+        
+        # potiential segfault here? - should probably do something similar to above
         # ready for action, enable buttons
         self.app.toggle_action_layout(True)
         
@@ -481,6 +537,9 @@ class Controller:
       self.app.error("Unable to start docker :*(")
 
   def daemon_alive(self):
+    """
+    Return True if docker daemon is alive, otherwise false
+    """
     if self.cli:
       try:
         version_info = self.cli.version()
@@ -524,7 +583,7 @@ class Controller:
       self.start_pe()
   
   def stop_docker_containers(self):
-    if self.container_alive() and self.settings.shutdown_on_exit:
+    if self.container_alive():
       self.cli.remove_container(container=self.container.get('Id'), force=True)
   
   def start_docker_daemon(self):
@@ -605,10 +664,38 @@ class Controller:
     ).geturl()
 
   def refresh_images(self):
+    """Update the lists of downloadable and locally available images,
+    then de-duplicate the list and produce a map combining both lists
+    so that the image managment grid can be built"""
+    
+    # First build lists...
     self.update_local_images()
-    self.update_downloadable_images()      
+    self.update_downloadable_images()
+    
+    # now combine into a hash
+    self.images = []
+    for tag in self.downloadable_images:
+      self.images.append({
+        "name": tag,
+        "status": "downloadable",
+        "selected": False
+      })
+    
+    for tag in self.local_images:
+      self.images.append({
+        "name": tag,
+        "status": "local",
+        "selected": False
+      })
+    
+    
 
   def update_local_images(self):
+    """
+    re-create teh list of locally downloaded images that are ready to
+    run.  Updates the self.local_images array to be a list of tags
+    present locally
+    """
     if self.cli is not None: 
       docker_images = self.cli.images()
 
@@ -623,6 +710,10 @@ class Controller:
 
   # images available for download    
   def update_downloadable_images(self):
+    """
+    re-create the list of image tags available for download.  Updates
+    self.downloadable_images to be a list of the available tags (strings)
+    """
     self.downloadable_images = []
     try:
       images = json.load(
@@ -641,6 +732,7 @@ class Controller:
           
   # test if a tag has already been downloaded    
   def tag_exists_locally(self, tag):
+    """determine if a given tag exists locallay"""
     found = False
     i = 0
     while not found and i < len(self.local_images):
@@ -654,6 +746,7 @@ class Controller:
     return found
   
   def run_puppet(self):
+    """Run puppet on the master"""
     self.cli.exec_start(self.cli.exec_create(
       container=self.DOCKER_CONTAINER,
       cmd="puppet agent -t"
@@ -669,11 +762,12 @@ class PeKitApp(App):
   The main application
   """
   logger = logging.getLogger(__name__)
+  settings = Settings()
     
-  def update_ui_images(self):
-    from pprint import pprint
-    pprint (vars(self))
-    self.root.get_screen("settings").update_ui_images()
+#  def update_ui_images(self):
+#    from pprint import pprint
+#    pprint (vars(self))
+#    self.root.get_screen("settings").update_ui_images()
     
     
   def pe_console(self):
@@ -719,7 +813,8 @@ class PeKitApp(App):
 
   def on_stop(self):
     self.controller.running = False
-    self.controller.stop_docker_containers()
+    if self.settings.shutdown_on_exit:
+      self.controller.stop_docker_containers()
     
   def get_selected_image(self):
     return self.root.get_screen("settings").selected_image_button.text    
@@ -790,6 +885,21 @@ class PeKitApp(App):
     self.root.get_screen("main").container_delete_image.source = container_icon
     self.root.get_screen("main").container_status_label.text = container_status
     self.root.get_screen("main").pe_status_image.source = pe_status_icon
+
+    
+# non-class logger
+logger = logging.getLogger(__name__)
+try:
+  app = PeKitApp()
+  app.run()
+except KeyboardInterrupt:
+  # signal all treads to stop
+  logger.error("someone pressed ctrl+c - exit")
+  app.controller.running = False
+except Exception as e:
+  app.controller.running = False
+  logger.error("unkown error - exception follows...")
+  logger.exception("message")
   
-PeKitApp().run()
-# App.get_running_app()
+  
+  # App.get_running_app()
