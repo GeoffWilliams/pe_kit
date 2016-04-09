@@ -367,9 +367,23 @@ class Controller:
   dockerbuild_port = 0
   app = None
   settings = Settings()
+  container_status = False
+  daemon_status = False
+  running = True
   
   def __init__(self):
     self.__dict__ = self.__shared_state
+    
+  def update_status(self):
+    while (self.running):
+      self.logger.debug("***update status***")
+      self.daemon_status = self.daemon_alive()
+
+      if self.daemon_status:
+        self.container_status = self.container_alive()
+      else:
+        self.container_status = False
+      time.sleep(1)
     
   def pe_status(self):
     """return status of PE master: running, loading, stopped"""
@@ -490,11 +504,16 @@ class Controller:
   def stop_docker_containers(self):
     if self.container_alive():
       self.cli.remove_container(container=self.container.get('Id'), force=True)
+    self.running = False
   
   def start_docker_daemon(self):
     # docker startup in own thread
-    t = threading.Thread(target=self.docker_init)
-    t.start()
+    self.logger.info("starting docker_init in own thread")
+    threading.Thread(target=self.docker_init).start()
+    
+    # self-monitoring/status in own thread
+    self.logger.info("starting update_status in own thread")
+    threading.Thread(target=self.update_status).start()
     
   def download_selected_images(self, x):
     for image in self.download_images:
@@ -691,7 +710,7 @@ class PeKitApp(App):
     self.root.get_screen("settings").on_start()
 
     # monitor the docker daemon and container
-    Clock.schedule_interval(self.daemon_monitor, 5)
+    Clock.schedule_interval(self.daemon_monitor, 1)
 
   def on_stop(self):
     self.app_running = False
@@ -728,17 +747,16 @@ class PeKitApp(App):
     self.root.get_screen("main").toggle_action_layout(show)
   
   def daemon_monitor(self, x):
-    alive = self.controller.daemon_alive()
     container_status = "not running"
     container_icon = "icons/play.png"
     pe_status = "stopped"
     
-    if alive:
+    if self.controller.daemon_status:
       self.logger.debug("docker daemon ok :)")
       daemon_icon = "icons/ok.png"
       
       # docker is alive, lets check the container too
-      uptime = self.controller.container_alive()
+      uptime = self.controller.container_status
       if uptime:
         container_status = "up {uptime} seconds".format(uptime=uptime)
         container_icon = "icons/delete.png"
