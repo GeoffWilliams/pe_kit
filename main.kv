@@ -47,42 +47,44 @@ ScreenManagement:
             id: action_layout_holder
             BoxLayout:
                 id: action_layout
-                # console    
-                Button:
-                    id: console_button
-                    text: 'Console'
-                    on_press: app.pe_console()
-                    disabled: True
+                orientation: 'vertical'
+                # console
+                BoxLayout:
+                    Button:
+                        id: console_button
+                        text: 'Console'
+                        on_press: app.pe_console()
+                        disabled: True
 
-                # terminal
-                Button:
-                    id: terminal_button
-                    text: 'Terminal'
-                    on_press: app.pe_terminal()
+                    # terminal
+                    Button:
+                        id: terminal_button
+                        text: 'Terminal'
+                        on_press: app.pe_terminal()
 
-        #
-        # Advanced
-        #
-        Button:
-            text: 'Toggle advanced actions'
-            on_press: app.toggle_advanced()
-            size_hint: (0.4, 0.5)
-        
-        BoxLayout:
-            id: advanced_layout_holder
-        
-            BoxLayout:
-                id: advanced_layout
-
-                # run puppet
+                #
+                # Advanced
+                #
                 Button:
-                    text:  'Run Puppet'
-                    on_release: app.run_puppet()
+                    text: 'Toggle advanced actions'
+                    on_press: app.toggle_advanced()
+                    size_hint: (0.4, 0.5)
 
-                # dockerbuild
-                Button:
-                    text: 'Dockerbuild'
-                    on_release: app.dockerbuild()
+                BoxLayout:
+                    id: advanced_layout_holder
+
+                    BoxLayout:
+                        id: advanced_layout
+
+                        # run puppet
+                        Button:
+                            text:  'Run Puppet'
+                            on_release: app.run_puppet()
+
+                        # dockerbuild
+                        Button:
+                            text: 'Dockerbuild'
+                            on_release: app.dockerbuild()
 
         #
         # Status
@@ -143,6 +145,8 @@ ScreenManagement:
     name: 'settings'
 
     # widget/class variable mapping
+    start_automatically_checkbox: start_automatically_checkbox
+    kill_orphans_checkbox: kill_orphans_checkbox
     download_images_layout: download_images_layout
     selected_image_button: selected_image_button
 
@@ -152,15 +156,14 @@ ScreenManagement:
         # start automatically
         BoxLayout:
             CheckBox:
-                value: 'checked'
-
+                id: start_automatically_checkbox
             Label:
                 text: 'Start container automatically'
             
         # kill orphans
         BoxLayout:
             CheckBox:
-                value: 'checked'
+                id: kill_orphans_checkbox
 
             Label:
                 text: 'Kill orphaned containers on startup'
@@ -182,5 +185,5 @@ ScreenManagement:
               
 
         Button:
-            on_release: app.root.current = 'main'
+            on_release: root.back()
             text: 'Back'

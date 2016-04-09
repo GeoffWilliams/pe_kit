@@ -1,7 +1,7 @@
 #!/usr/bin/env kivy
 import logging
 logging.basicConfig(level=logging.DEBUG)
-
+import ConfigParser
 
 from kivy.app import App
 from kivy.clock import Clock
@@ -39,13 +39,30 @@ import datetime
 import ssl
 
 class Settings:
+  DEFAULTS_FILE = os.path.dirname(os.path.realpath(__file__)) + "/defaults.cfg"
+  CONFIG_FILE = os.path.expanduser('~') + "/.pe_kit.cfg"
   __shared_state = {}
   start_automatically = True
   kill_orphans = True
   use_latest_image = True
 
   def __init__(self):
-    self.__dict__ = self.__shared_state  
+    self.__dict__ = self.__shared_state
+    self.load()
+    
+  def save(self):
+    self.config.set("main", "start_automatically", self.start_automatically)
+    self.config.set("main", "kill_orphans", self.kill_orphans)
+    self.config.set("main", "use_latest_image", self.use_latest_image)
+    self.config.write(open(self.CONFIG_FILE, 'w'))
+    
+  def load(self):
+    self.config = ConfigParser.RawConfigParser()
+    self.config.readfp(open(self.DEFAULTS_FILE))
+    self.config.read(self.CONFIG_FILE)
+    self.start_automatically = self.config.getboolean("main","start_automatically")
+    self.kill_orphans = self.config.getboolean("main","kill_orphans")
+    self.use_latest_image = self.config.getboolean("main","use_latest_image")
 
 class DockerMachine():
   """
@@ -102,6 +119,8 @@ class DockerMachine():
 class SettingsScreen(Screen):
   
   logger = logging.getLogger(__name__)
+  start_automatically_checkbox = ObjectProperty(None)
+  kill_orphans_checkbox = ObjectProperty(None)
   download_images_layout = ObjectProperty(None)
   selected_image_button = ObjectProperty(None)
   settings                = Settings()
@@ -110,6 +129,19 @@ class SettingsScreen(Screen):
   def __init__(self, **kwargs):
     super(SettingsScreen, self).__init__(**kwargs)
     self.controller = Controller()
+    
+  def on_start(self):
+    self.start_automatically_checkbox.active = self.settings.start_automatically 
+    self.kill_orphans_checkbox.active = self.settings.kill_orphans
+    
+  def back(self):
+    """save settings and go back"""
+    self.settings.start_automatically = self.start_automatically_checkbox.active
+    self.settings.kill_orphans = self.kill_orphans_checkbox.active
+    self.settings.save()
+    #App.get_running_app()
+    App.get_running_app().root.current = 'main'
+    
     
   def on_download_checkbox(self, checkbox, value):
     if value:
@@ -654,6 +686,9 @@ class PeKitApp(App):
     
     # hide action buttons until we have loaded the system
     self.root.get_screen("main").toggle_action_layout(False)
+    
+    # setup the settings screen 
+    self.root.get_screen("settings").on_start()
 
     # monitor the docker daemon and container
     Clock.schedule_interval(self.daemon_monitor, 5)
