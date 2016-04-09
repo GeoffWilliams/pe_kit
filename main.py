@@ -194,15 +194,31 @@ class SettingsScreen(Screen):
 #    self.orientation = "vertical"
 #    self.spacing = 30,30  
   def update_image_managment(self, x):
+    def image_action(button):
+      self.logger.info(
+        "image action: {tag}, {status}".format(tag=button.tag, status=button.status))
+      if button.status == "downloadable":
+        # start download
+        action = self.controller.download_image
+        button.background_normal = "icons/wait.png"
+      elif button.status == "local":
+        # delete
+        action = self.controller.delete_image
+      self.logger.info(button.tag)
+      
+      # start delete/download in own thread
+      threading.Thread(target=action, args=[button.tag]).start()
+        
     if self.controller.images_refreshed:
       self.image_management_layout.clear_widgets()
       for image in self.controller.images:
         name_label = Label(text=image["name"])
-        #name_label.size_hint = (None, None)
         name_label.bind(size=name_label.setter('text_size'))    
-        #name_label.text_size = (None,None)#name_label.size
         name_label.halign = "left"
         status_button = self.get_image_button(image["status"])
+        status_button.tag = image["name"]
+        status_button.status = image["status"]
+        status_button.bind(on_release=image_action)
         if image["status"] == "local":
           selected_button = ToggleButton(text="selected", group="image")
         else:
@@ -326,17 +342,7 @@ class MainScreen(Screen):
     else:
       self.download_images.remove(checkbox.tag)
 
-  def download_selected_images(self, x):
-    for image in self.download_images:
-      self.log("download " + image)
-      self.cli.pull(
-        repository = self.DOCKER_IMAGE_PATTERN,
-        tag = image
-      )
-      
-    # update the list of images still available for download/available for use
-    self.update_downloadable_images()
-    self.update_local_images()
+
     
   def dockerbuild(self):
     App.get_running_app().info("Launching dockerbuild - have fun :)")
@@ -455,6 +461,20 @@ class Controller:
   
   def __init__(self):
     self.__dict__ = self.__shared_state
+
+  def delete_image(self, tag):
+    self.cli.remove_image(
+      tag
+    )
+    self.refresh_images()
+      
+  def download_image(self, tag):
+    self.cli.pull(
+      repository = self.DOCKER_IMAGE_PATTERN,
+      tag = tag
+    )
+    self.refresh_images()
+
     
   def update_status(self):
     """daemon thread to check if docker and container are alive"""
@@ -697,6 +717,7 @@ class Controller:
         "selected": False
       })
     
+    self.images_refreshed = True
     
 
   def update_local_images(self):
