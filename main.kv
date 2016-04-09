@@ -1,10 +1,10 @@
 #:kivy 1.0
-<Widget>:
-    canvas.after:
-        Line:
-            rectangle: self.x+1,self.y+1,self.width-1,self.height-1
-            dash_offset: 5
-            dash_length: 3
+#<Widget>:
+#    canvas.after:
+#        Line:
+#            rectangle: self.x+1,self.y+1,self.width-1,self.height-1
+#            dash_offset: 5
+#            dash_length: 3
 
 ScreenManagement:
     MainScreen:
@@ -134,7 +134,9 @@ ScreenManagement:
                 size_hint_x: None
                 height: dp(40)
                 width: dp(40)
-                source: 'icons/disabled.png'                   
+                source: 'icons/disabled.png'
+                on_touch_down: app.info("Container status - red=stopped, timer=loading, puppet=running")
+
             Image:
                 id: docker_status_image
                 #size_hint: (0.1, 1)
@@ -144,7 +146,7 @@ ScreenManagement:
                 height: dp(40)
                 width: dp(40)
                 source:  'icons/ok.png'
-
+                on_touch_down: app.info("Docker daemon status - green=running, red=broken")
 
             
 <SettingsScreen>:

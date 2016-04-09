@@ -123,6 +123,11 @@ class DockerMachine():
     return started
 
 class SettingsScreen(Screen):
+  """
+  Settings Screen
+  
+  Screen for saving settings and managing docker images
+  """
   
   logger = logging.getLogger(__name__)
   image_management_layout       = ObjectProperty(None)
@@ -158,13 +163,6 @@ class SettingsScreen(Screen):
     #App.get_running_app()
     App.get_running_app().root.current = 'main'
     
-    
-#  def on_download_checkbox(self, checkbox, value):
-#    if value:
-#      self.controller.download_images.append(checkbox.tag)
-#    else:
-#      self.controller.download_images.remove(checkbox.tag)    
-    
   def get_image_button(self, status):
     if status == "downloadable":
       icon = "icons/download.png"
@@ -180,19 +178,10 @@ class SettingsScreen(Screen):
     button.size_hint = (None, None)
     button.width = "20dp"
     button.height = "20dp"
-    #image = Image()
-    #button.add_widget(image)
-    #image.allow_stretch = True
-    #image.center_x = self.parent.center_x
-    #image.center_y = self.parent.center_y
-    #image.height = "40dp"
-    #image.width = "40dp"
-    #image.source = icon
-    
+  
     return button
-    
-#    self.orientation = "vertical"
-#    self.spacing = 30,30  
+  
+  
   def update_image_managment(self, x):
     def image_action(button):
       self.logger.info(
@@ -229,61 +218,6 @@ class SettingsScreen(Screen):
         self.image_management_layout.add_widget(status_button)
         self.image_management_layout.add_widget(selected_button)
       self.controller.images_refreshed = False
-    # remove any existing children to handle multiple calls
-#    self.download_images_layout.clear_widgets()
-#
-#    if len(self.controller.downloadable_images) > 0:
-#      for tag in self.controller.downloadable_images:
-#        row_layout = BoxLayout()
-#
-#        # checkbox
-#        checkbox = CheckBox()
-#        checkbox.bind(active=self.on_download_checkbox)
-#        checkbox.tag = tag
-#        row_layout.add_widget(checkbox)
-#
-#
-#        # label
-#        image_label = Label(text=tag)
-#        row_layout.add_widget(image_label)
-#        self.logger.info(tag)
-#
-#        self.download_images_layout.add_widget(row_layout)
-#
-#      download_button = Button(text="Download selected")
-#      download_button.bind(on_press=self.controller.download_selected_images)
-#      self.download_images_layout.add_widget(download_button)
-#    else:    
-#      self.download_images_layout.add_widget(Label(text="All images up-to-date"))
-#      
-#    # close the updating message or it will hang around waiting for user
-#    # to click OK
-#    #popup[0].dismiss()
-#
-#    # --------
-#    dropdown = DropDown()
-#    for image_name in self.controller.local_images:
-#      btn = Button(text=image_name, size_hint_y=None, height=44)
-#      btn.bind(on_release=lambda btn: dropdown.select(btn.text))
-#      dropdown.add_widget(btn)
-#
-#    self.selected_image_button.bind(on_release=dropdown.open)
-#    #self.add_widget(self.docker_image_button)
-#    dropdown.bind(on_select=lambda instance, x: setattr(self.selected_image_button, 'text', x))  
-#
-#    # select the first image in the list (most recent)
-#    if len(self.controller.local_images) > 0:
-#      self.logger.debug("selecting image " + self.controller.local_images[0])
-#      self.selected_image_button.text = self.controller.local_images[0]
-#      
-#      # start automatically if configured
-#      if self.settings.start_automatically:
-#        self.logger.debug("automatically starting container (settings)")
-#        self.controller.start_pe()
-#      
-#    else:
-#      self.error("no images available")
-    
 
 class MainScreen(Screen):
   """
@@ -356,48 +290,6 @@ class MainScreen(Screen):
   def run_puppet(self):
     App.get_running_app().info("running puppet on master")
     self.controller.run_puppet()
-      
-  # images available for download    
-#  def update_downloadable_images(self):
-#    popup = [None]
-#    
-#    def update_message():
-#      popup[0] = self.info("Checking for updates...")
-#      
-#    t = threading.Thread(target=update_message)
-#    t.start()
-#    time.sleep(1)
-#
-#      # if image is already downloaded, don't list it as available for download
-#      tag = tags["name"]
-#      if not self.tag_exists_locally(tag):
-#        new_images = True
-#        row_layout = BoxLayout()
-#      
-#        # checkbox
-#        checkbox = CheckBox()
-#        checkbox.bind(active=self.on_download_checkbox)
-#        checkbox.tag = tag
-#        row_layout.add_widget(checkbox)
-#
-#
-#        # label
-#        image_label = Label(text=tag)
-#        row_layout.add_widget(image_label)
-#        self.log(tag)
-#
-#        self.download_images_layout.add_widget(row_layout)
-#    
-#    if new_images:
-#      download_button = Button(text="Download selected")
-#      download_button.bind(on_press=self.download_selected_images)
-#      self.download_images_layout.add_widget(download_button)
-#    else:    
-#      self.download_images_layout.add_widget(Label(text="All images up-to-date"))
-#      
-#    # close the updating message or it will hang around waiting for user
-#    # to click OK
-#    popup[0].dismiss()
 
   def log(self, message, level="[info]  "):
     current = self.log_textinput.text
@@ -930,6 +822,3 @@ except Exception as e:
   app.controller.running = False
   logger.error("unkown error - exception follows...")
   logger.exception("message")
-  
-  
-  # App.get_running_app()
