@@ -45,7 +45,8 @@ class Settings:
   start_automatically = True
   kill_orphans = True
   use_latest_image = True
-
+  shutdown_on_exit = True
+  
   def __init__(self):
     self.__dict__ = self.__shared_state
     self.load()
@@ -54,6 +55,8 @@ class Settings:
     self.config.set("main", "start_automatically", self.start_automatically)
     self.config.set("main", "kill_orphans", self.kill_orphans)
     self.config.set("main", "use_latest_image", self.use_latest_image)
+    self.config.set("main", "shutdown_on_exit", self.shutdown_on_exit)
+
     self.config.write(open(self.CONFIG_FILE, 'w'))
     
   def load(self):
@@ -63,6 +66,7 @@ class Settings:
     self.start_automatically = self.config.getboolean("main","start_automatically")
     self.kill_orphans = self.config.getboolean("main","kill_orphans")
     self.use_latest_image = self.config.getboolean("main","use_latest_image")
+    self.shutdown_on_exit = self.config.getboolean("main", "shutdown_on_exit")
 
 class DockerMachine():
   """
@@ -119,11 +123,12 @@ class DockerMachine():
 class SettingsScreen(Screen):
   
   logger = logging.getLogger(__name__)
-  start_automatically_checkbox = ObjectProperty(None)
-  kill_orphans_checkbox = ObjectProperty(None)
-  download_images_layout = ObjectProperty(None)
-  selected_image_button = ObjectProperty(None)
-  settings                = Settings()
+  start_automatically_checkbox  = ObjectProperty(None)
+  kill_orphans_checkbox         = ObjectProperty(None)
+  download_images_layout        = ObjectProperty(None)
+  selected_image_button         = ObjectProperty(None)
+  shutdown_on_exit_checkbox     = ObjectProperty(None)
+  settings                      = Settings()
 
   
   def __init__(self, **kwargs):
@@ -131,13 +136,15 @@ class SettingsScreen(Screen):
     self.controller = Controller()
     
   def on_start(self):
-    self.start_automatically_checkbox.active = self.settings.start_automatically 
-    self.kill_orphans_checkbox.active = self.settings.kill_orphans
+    self.start_automatically_checkbox.active  = self.settings.start_automatically 
+    self.kill_orphans_checkbox.active         = self.settings.kill_orphans
+    self.shutdown_on_exit_checkbox.active     = self.settings.shutdown_on_exit
     
   def back(self):
     """save settings and go back"""
     self.settings.start_automatically = self.start_automatically_checkbox.active
-    self.settings.kill_orphans = self.kill_orphans_checkbox.active
+    self.settings.kill_orphans        = self.kill_orphans_checkbox.active
+    self.settings.shutdown_on_exit    = self.shutdown_on_exit_checkbox.active
     self.settings.save()
     #App.get_running_app()
     App.get_running_app().root.current = 'main'
@@ -244,12 +251,16 @@ class MainScreen(Screen):
       self.action_layout_holder.clear_widgets()
     
   def toggle_advanced(self):
+    self.logger.debug("clicked toggle_advanced()")
     if self.advanced_layout in self.advanced_layout_holder.children:
       # showing -> hide
+      self.advanced_layout = self.advanced_layout_holder.children[0]
       self.advanced_layout_holder.clear_widgets()
     else:
       # hidden -> show
       self.advanced_layout_holder.add_widget(self.advanced_layout)
+    self.logger.debug("...exiting toggle_advanced()")
+
 
   def toggle_log(self, x):
     if self.log_textinput in self.advanced_layout.children:
@@ -276,7 +287,18 @@ class MainScreen(Screen):
     self.update_downloadable_images()
     self.update_local_images()
     
+  def dockerbuild(self):
+    App.get_running_app().info("Launching dockerbuild - have fun :)")
 
+    def open_browser(dt):
+      webbrowser.open_new(self.controller.dockerbuild_url)
+
+    # call the named callback in 2 seconds (delay without freezing)
+    Clock.schedule_once(open_browser, 2)
+        
+  def run_puppet(self):
+    App.get_running_app().info("running puppet on master")
+    self.controller.run_puppet()
       
   # images available for download    
 #  def update_downloadable_images(self):
@@ -376,7 +398,6 @@ class Controller:
     
   def update_status(self):
     while (self.running):
-      self.logger.debug("***update status***")
       self.daemon_status = self.daemon_alive()
 
       if self.daemon_status:
@@ -445,6 +466,8 @@ class Controller:
               self.cli.remove_container(self.DOCKER_CONTAINER, force=True)
             else:
               self.logger.info("reusing existing container")
+              self.container = self.cli.inspect_container(self.DOCKER_CONTAINER)
+              self.munge_urls()
         except docker.errors.NotFound:
           self.logger.info("container not running, OK to start new one")
                 
@@ -502,9 +525,8 @@ class Controller:
       self.start_pe()
   
   def stop_docker_containers(self):
-    if self.container_alive():
+    if self.container_alive() and self.settings.shutdown_on_exit:
       self.cli.remove_container(container=self.container.get('Id'), force=True)
-    self.running = False
   
   def start_docker_daemon(self):
     # docker startup in own thread
@@ -552,34 +574,36 @@ class Controller:
           publish_all_ports=True,
         )
         #self.log(resp)
-
-        # inspect the container and get the port mapping
-        container_info = self.cli.inspect_container(self.container.get("Id"))
-        pp = pprint.PrettyPrinter()
-        pp.pprint(container_info)
         #self.log(pp.pformat(container_info))
 
-        self.pe_console_port = container_info["NetworkSettings"]["Ports"]["443/tcp"][0]["HostPort"]
-        self.dockerbuild_port = container_info["NetworkSettings"]["Ports"]["9000/tcp"][0]["HostPort"]
-
-        parsed = urlparse(self.docker_url)
-        
-        # update the URL to browse to for PE console
-        self.pe_url = parsed._replace(
-          netloc="{}:{}".format(parsed.hostname, self.pe_console_port)
-        ).geturl()
-        
-        # update the URL for dockerbuild
-        self.dockerbuild_url = parsed._replace(
-          scheme='http',
-          netloc="{}:{}".format(parsed.hostname, self.dockerbuild_port)
-        ).geturl()
+        self.munge_urls()
         
         status = True
       else:
         self.app.error("Please select an image from the list first")
 
     return status
+  
+  def munge_urls(self):
+    
+    # inspect the container and get the port mapping
+    container_info = self.cli.inspect_container(self.container.get("Id"))
+    pp = pprint.PrettyPrinter()
+    pp.pprint(container_info)    
+    self.pe_console_port = container_info["NetworkSettings"]["Ports"]["443/tcp"][0]["HostPort"]
+    self.dockerbuild_port = container_info["NetworkSettings"]["Ports"]["9000/tcp"][0]["HostPort"]
+    parsed = urlparse(self.docker_url)
+
+    # update the URL to browse to for PE console
+    self.pe_url = parsed._replace(
+      netloc="{}:{}".format(parsed.hostname, self.pe_console_port)
+    ).geturl()
+
+    # update the URL for dockerbuild
+    self.dockerbuild_url = parsed._replace(
+      scheme='http',
+      netloc="{}:{}".format(parsed.hostname, self.dockerbuild_port)
+    ).geturl()
 
   def refresh_images(self):
     self.update_local_images()
@@ -630,7 +654,7 @@ class Controller:
         
     return found
   
-  def run_puppet():
+  def run_puppet(self):
     self.cli.exec_start(self.cli.exec_create(
       container=self.DOCKER_CONTAINER,
       cmd="puppet agent -t"
@@ -646,11 +670,6 @@ class PeKitApp(App):
   The main application
   """
   logger = logging.getLogger(__name__)
-  app_running = True
-  
-  
-  def toggle_advanced(self):
-    self.root.get_screen("main").toggle_advanced()
     
   def update_ui_images(self):
     from pprint import pprint
@@ -679,19 +698,6 @@ class PeKitApp(App):
     # call the named callback in 2 seconds (delay without freezing)
     Clock.schedule_once(open_terminal, 2)
 
-  def dockerbuild(self):
-    self.info("Launching dockerbuild - have fun :)")
-
-    def open_browser(dt):
-      webbrowser.open_new(self.controller.dockerbuild_url)
-
-    # call the named callback in 2 seconds (delay without freezing)
-    Clock.schedule_once(open_browser, 2)
-        
-  def run_puppet(self):
-    self.info("running puppet on master")
-    self.controller.run_puppet()
-
   def build(self):
     self.controller = Controller()
     self.controller.start_docker_daemon()
@@ -710,10 +716,10 @@ class PeKitApp(App):
     self.root.get_screen("settings").on_start()
 
     # monitor the docker daemon and container
-    Clock.schedule_interval(self.daemon_monitor, 1)
+    Clock.schedule_interval(self.daemon_monitor, 3)
 
   def on_stop(self):
-    self.app_running = False
+    self.controller.running = False
     self.controller.stop_docker_containers()
     
   def get_selected_image(self):

@@ -67,7 +67,7 @@ ScreenManagement:
                 #
                 Button:
                     text: 'Toggle advanced actions'
-                    on_press: app.toggle_advanced()
+                    on_release: root.toggle_advanced()
                     size_hint: (0.4, 0.5)
 
                 BoxLayout:
@@ -79,12 +79,12 @@ ScreenManagement:
                         # run puppet
                         Button:
                             text:  'Run Puppet'
-                            on_release: app.run_puppet()
+                            on_release: root.run_puppet()
 
                         # dockerbuild
                         Button:
                             text: 'Dockerbuild'
-                            on_release: app.dockerbuild()
+                            on_release: root.dockerbuild()
 
         #
         # Status
@@ -147,6 +147,7 @@ ScreenManagement:
     # widget/class variable mapping
     start_automatically_checkbox: start_automatically_checkbox
     kill_orphans_checkbox: kill_orphans_checkbox
+    shutdown_on_exit_checkbox: shutdown_on_exit_checkbox
     download_images_layout: download_images_layout
     selected_image_button: selected_image_button
 
@@ -167,6 +168,14 @@ ScreenManagement:
 
             Label:
                 text: 'Kill orphaned containers on startup'
+                
+        # Shutdown on exit
+        BoxLayout:
+            CheckBox:
+                id: shutdown_on_exit_checkbox
+            
+            Label:
+                text: 'Shutdown PE on on exit'
                 
         # downloadable images
         BoxLayout:
