@@ -6,14 +6,16 @@ ScreenManagement:
 <MainScreen>:
     name: 'main'
     
-    advanced_layout: advanced_layout
+    # prevent errors due to weak reference being GC'ed
+    # see https://kivy.org/docs/guide/lang.html
+    advanced_layout: advanced_layout.__self__
     advanced_layout_holder: advanced_layout_holder
     app_status_label: app_status_label
     container_status_label:container_status_label
     container_delete_image: container_delete_image
     docker_status_image: docker_status_image
     action_layout_holder: action_layout_holder
-    action_layout: action_layout
+    action_layout: action_layout.__self__
     pe_status_image: pe_status_image
     console_button: console_button
     terminal_button: terminal_button

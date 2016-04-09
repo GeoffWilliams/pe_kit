@@ -254,7 +254,6 @@ class MainScreen(Screen):
     self.logger.debug("clicked toggle_advanced()")
     if self.advanced_layout in self.advanced_layout_holder.children:
       # showing -> hide
-      self.advanced_layout = self.advanced_layout_holder.children[0]
       self.advanced_layout_holder.clear_widgets()
     else:
       # hidden -> show
