@@ -13,7 +13,7 @@ package.domain = uk.me.geoffwilliams
 source.dir = .
 
 # (list) Source files to include (let empty to include all the files)
-source.include_exts = py,png,jpg,kv,atlas
+source.include_exts = py,png,jpg,kv,atlas,cfg
 
 # (list) Source files to exclude (let empty to not exclude anything)
 #source.exclude_exts = spec
@@ -25,7 +25,7 @@ source.include_exts = py,png,jpg,kv,atlas
 #source.exclude_patterns = license,images/*/*.jpg
 
 # (str) Application versioning (method 1)
-version = 0.1.0
+version = 0.1.1
 
 # (str) Application versioning (method 2)
 # version.regex = __version__ = ['"](.*)['"]
