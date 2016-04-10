@@ -269,23 +269,21 @@ class MainScreen(Screen):
         if uptime:
             pe_status = self.controller.pe_status()
 
-            message = "Docker container is alive, up {uptime} seconds.  PE is {pe_status}".format(
+            message = "Docker container is alive, up {uptime} seconds.  PE is {pe_status}.  ".format(
               uptime = uptime,
               pe_status = pe_status
             )
             if self.settings.expose_ports and pe_status == "running":
-                command = "curl -k https://{docker_address}:8140/packages/current/install.bash | sudo bash".format(
-                  docker_address=self.controller.docker_address
-                )
+                command = "curl -k https://pe-puppet.localdomain:8140/packages/current/install.bash | sudo bash"
                 Clipboard.copy(command)
 
-                message += textwrap.dedent("""
-                You can install the puppet agent into a VM by running:
-
+                message += "You can install agent by running:" + textwrap.dedent(
+                """
                 {command}
-
-                This command has been copied to your clipboard for you (BUT IT DOESN'T FUCKING WORK, SOMETHINGS BROKEN and its not just /etc/hosts!)
-                """.format(command=command))
+                
+                You must add the following to your /etc/hosts file before running:
+                {docker_address} pe-puppet.localdomain pe-puppet
+                """.format(command=command, docker_address=self.controller.docker_address))
 
             pe_status = self.controller.pe_status()
         else:
