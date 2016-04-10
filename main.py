@@ -413,10 +413,13 @@ class Controller:
     self.refresh_images()
       
   def download_image(self, tag):
-    self.cli.pull(
+    for line in self.cli.pull(
       repository = self.DOCKER_IMAGE_PATTERN,
-      tag = tag
-    )
+      tag = tag,
+      stream = True,
+    ):
+      if not self.running:
+        raise Exception("Aborting download because quit!")
     self.refresh_images()
 
     
