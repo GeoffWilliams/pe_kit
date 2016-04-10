@@ -418,7 +418,9 @@ class Controller:
       tag = tag,
       stream = True,
     ):
-      if not self.running:
+      if self.running:
+        self.logger.debug(line)
+      else:
         raise Exception("Aborting download because quit!")
     self.refresh_images()
 
@@ -591,7 +593,7 @@ class Controller:
     if self.container_alive():
       status = True
     else:
-      if selected_image.startswith(self.DOCKER_IMAGE_PATTERN):
+      if selected_image and selected_image.startswith(self.DOCKER_IMAGE_PATTERN):
         port_bindings = self.port_bindings()
         self.container = self.cli.create_container(
           image=selected_image,
@@ -617,7 +619,7 @@ class Controller:
         
         status = True
       else:
-        self.app.error("Please select an image from the list first")
+        self.app.error("No image selected, check settings")
 
     return status
   
@@ -799,8 +801,11 @@ class PeKitApp(App):
     if self.settings.use_latest_image:
       selected = self.controller.local_images[0]
     else:
-      current = [t for t in ToggleButton.get_widgets('selected_image') if t.state=='down'][0]
-      selected = current.image_name
+      try:
+        current = [t for t in ToggleButton.get_widgets('selected_image') if t.state=='down'][0]
+        selected = current.image_name
+      except IndexError:
+        selected = None
     return selected  
 
   def error(self, message):
