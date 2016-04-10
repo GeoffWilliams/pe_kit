@@ -588,7 +588,6 @@ class Controller:
   def start_pe(self):
     status = False
     tag = self.app.get_selected_image()
-    selected_image = self.DOCKER_IMAGE_PATTERN + ":" + tag
 
     if self.container_alive():
       status = True
