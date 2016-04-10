@@ -776,6 +776,7 @@ class PeKitApp(App):
     self.controller = Controller()
     self.controller.start_docker_daemon()
     self.controller.app = self
+    self.icon = "icons/logo.png"
 
     return Builder.load_file("main.kv")
 
