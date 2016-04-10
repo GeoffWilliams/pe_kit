@@ -41,17 +41,8 @@ how to install python on a mac
 **IMPORTANT! do not use zshell!!!**
 
 # Running
-For the moment, you need to download the docker images you want to be able to
-run locally, eg
-
 ```
-docker pull geoffwilliams/pe_master_public_lowmem:2015.3.3-0
+./main.py
 ```
-
-Once you have the image installed, you can run the GUI and work away :)
-```
-./pe_kit.py
-```
-**NOTE:** You must run the above command from the _Docker Quickstart Terminal_
 
 
