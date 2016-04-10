@@ -40,7 +40,7 @@ how to install python on a mac
 
 **IMPORTANT! do not use zshell!!!**
 
-# Running
+## Running
 ```
 ./main.py
 ```
