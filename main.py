@@ -48,6 +48,7 @@ class Settings:
   kill_orphans = True
   use_latest_image = True
   shutdown_on_exit = True
+  expose_ports = True
   
   def __init__(self):
     self.__dict__ = self.__shared_state
@@ -58,6 +59,7 @@ class Settings:
     self.config.set("main", "kill_orphans", self.kill_orphans)
     self.config.set("main", "use_latest_image", self.use_latest_image)
     self.config.set("main", "shutdown_on_exit", self.shutdown_on_exit)
+    self.config.set("main", "expose_ports", self.expose_ports)
 
     self.config.write(open(self.CONFIG_FILE, 'w'))
     
@@ -69,6 +71,7 @@ class Settings:
     self.kill_orphans = self.config.getboolean("main","kill_orphans")
     self.use_latest_image = self.config.getboolean("main","use_latest_image")
     self.shutdown_on_exit = self.config.getboolean("main", "shutdown_on_exit")
+    self.expose_ports = self.config.getboolean("main", "expose_ports")
 
 class DockerMachine():
   """
@@ -137,6 +140,7 @@ class SettingsScreen(Screen):
   download_images_layout        = ObjectProperty(None)
   selected_image_button         = ObjectProperty(None)
   shutdown_on_exit_checkbox     = ObjectProperty(None)
+  expose_ports_checkbox         = ObjectProperty(None)
   settings                      = Settings()
 
   
@@ -149,6 +153,7 @@ class SettingsScreen(Screen):
     self.start_automatically_checkbox.active  = self.settings.start_automatically 
     self.kill_orphans_checkbox.active         = self.settings.kill_orphans
     self.shutdown_on_exit_checkbox.active     = self.settings.shutdown_on_exit
+    self.expose_ports_checkbox.active         = self.settings.expose_ports
     
     # periodically refresh the image managment grid if we need to
     Clock.schedule_interval(self.update_image_managment, 0.5)
@@ -159,6 +164,8 @@ class SettingsScreen(Screen):
     self.settings.start_automatically = self.start_automatically_checkbox.active
     self.settings.kill_orphans        = self.kill_orphans_checkbox.active
     self.settings.shutdown_on_exit    = self.shutdown_on_exit_checkbox.active
+    self.settings.expose_ports        = self.expose_ports_checkbox.active
+
     self.settings.save()
     #App.get_running_app()
     App.get_running_app().root.current = 'main'
@@ -404,27 +411,30 @@ class Controller:
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_NONE    
     
-    try:
-      code = urllib2.urlopen(self.pe_url, context=ctx).getcode()
-      if code == 200:
-        self.logger.debug("puppet up and running :D")
-        status = "running"
-      else:
-        self.logger.debug("puppet loading...")
-        status = "loading"
-    except urllib2.HTTPError as e:
-        self.logger.debug("puppet http server error: {message} code: {code}".format(
-          message = e.reason,
-          code = e.code
-        ))
-        status = "loading"      
-    except urllib2.URLError as e:
-        self.logger.debug("puppet stopped/unreachable at {pe_url}:  {message}".format(
-          pe_url = self.pe_url,
-          message = e.reason,
-        ))
-        status = "stopped"
-
+    if self.pe_url:
+      try:
+        code = urllib2.urlopen(self.pe_url, context=ctx).getcode()
+        if code == 200:
+          self.logger.debug("puppet up and running :D")
+          status = "running"
+        else:
+          self.logger.debug("puppet loading...")
+          status = "loading"
+      except urllib2.HTTPError as e:
+          self.logger.debug("puppet http server error: {message} code: {code}".format(
+            message = e.reason,
+            code = e.code
+          ))
+          status = "loading"      
+      except urllib2.URLError as e:
+          self.logger.debug("puppet stopped/unreachable at {pe_url}:  {message}".format(
+            pe_url = self.pe_url,
+            message = e.reason,
+          ))
+          status = "stopped"
+    else:
+      status = "error"
+          
     return status
 
   
@@ -460,11 +470,12 @@ class Controller:
               self.munge_urls()
         except docker.errors.NotFound:
           self.logger.info("container not running, OK to start new one")
-                
+        
+        # update downloadble and local images on the settings page
         self.refresh_images()
         
-        # tell GUI to refresh images
-        self.images_refreshed = True
+        if self.settings.start_automatically:
+          self.start_pe()
         
         # potiential segfault here? - should probably do something similar to above
         # ready for action, enable buttons
@@ -533,6 +544,16 @@ class Controller:
     self.logger.info("starting update_status in own thread")
     threading.Thread(target=self.update_status).start() 
     
+  def port_bindings(self):
+    return {
+      22: None,
+      8140: 8140 if self.settings.expose_ports else None,
+      61613: 61613 if self.settings.expose_ports else None,
+      61616: None,
+      443: None,
+      9000: None,
+    }
+    
   def start_pe(self):
     status = False
     selected_image = self.app.get_selected_image()
@@ -540,6 +561,7 @@ class Controller:
       status = True
     else:
       if selected_image.startswith(self.DOCKER_IMAGE_PATTERN):
+        port_bindings = self.port_bindings()
         self.container = self.cli.create_container(
           image=selected_image,
           name=self.DOCKER_CONTAINER,
@@ -548,11 +570,15 @@ class Controller:
           volumes = [
               "/sys/fs/cgroup",
           ],
+          ports = port_bindings.keys(),
+          host_config=self.cli.create_host_config(port_bindings=port_bindings)
         )
+        
         resp = self.cli.start(
           container=self.container.get('Id'), 
           privileged=True,
-          publish_all_ports=True,
+          port_bindings=port_bindings
+          
         )
         #self.log(resp)
         #self.log(pp.pformat(container_info))
@@ -741,6 +767,7 @@ class PeKitApp(App):
       self.controller.stop_docker_containers()
     
   def get_selected_image(self):
+    return "geoffwilliams/pe_master_public_lowmem_r10k_dockerbuild:2016.1.1-1"
     return self.root.get_screen("settings").selected_image_button.text    
 
   def error(self, message):

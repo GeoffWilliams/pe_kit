@@ -149,6 +149,7 @@ ScreenManagement:
     start_automatically_checkbox: start_automatically_checkbox
     kill_orphans_checkbox: kill_orphans_checkbox
     shutdown_on_exit_checkbox: shutdown_on_exit_checkbox
+    expose_ports_checkbox: expose_ports_checkbox
 
     BoxLayout:
         orientation: 'vertical'
@@ -191,17 +192,21 @@ ScreenManagement:
             # kill orphans
             CheckBox:
                 id: kill_orphans_checkbox
-
             Label:
                 text: 'Kill orphaned containers on startup'
                 
             # Shutdown on exit
             CheckBox:
                 id: shutdown_on_exit_checkbox
-            
             Label:
                 text: 'Shutdown PE on on exit'
-
+           
+            # Expose puppet and mcollective ports through docker
+            CheckBox:
+                id: expose_ports_checkbox
+            Label:
+                text: 'Expose Puppet and MCollective ports'
+                               
         Button:
             on_release: root.back()
             text: 'Back'
