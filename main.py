@@ -227,6 +227,8 @@ class SettingsScreen(Screen):
             selected_button.border = (0, 0, 0, 0)
             selected_button.width = "20dp"
             selected_button.height = "20dp"
+            selected_button.group = "selected_image"
+            selected_button.image_name = image["name"]
           else:
             # use a blank label as a spacer
             selected_button = Label()
@@ -606,8 +608,7 @@ class Controller:
           port_bindings=port_bindings
           
         )
-        #self.log(resp)
-        #self.log(pp.pformat(container_info))
+
 
         self.munge_urls()
         
@@ -743,12 +744,7 @@ class PeKitApp(App):
   """
   logger = logging.getLogger(__name__)
   settings = Settings()
-    
-#  def update_ui_images(self):
-#    from pprint import pprint
-#    pprint (vars(self))
-#    self.root.get_screen("settings").update_ui_images()
-    
+
     
   def pe_console(self):
     print("pe_console clicked!")
@@ -797,8 +793,12 @@ class PeKitApp(App):
       self.controller.stop_docker_containers()
     
   def get_selected_image(self):
-    return "geoffwilliams/pe_master_public_lowmem_r10k_dockerbuild:2016.1.1-1"
-    return self.root.get_screen("settings").selected_image_button.text    
+    if self.settings.use_latest_image:
+      selected = self.controller.local_images[0]
+    else:
+      current = [t for t in ToggleButton.get_widgets('selected_image') if t.state=='down'][0]
+      selected = current.image_name
+    return selected  
 
   def error(self, message):
     return self.popup(title='Error!', message=message)
@@ -860,8 +860,6 @@ class PeKitApp(App):
       self.root.get_screen("main").console_button.disabled = True
       self.root.get_screen("main").terminal_button.disabled = True
 
-    
-      
     self.root.get_screen("main").docker_status_image.background_normal = daemon_icon
     self.root.get_screen("main").container_delete_image.background_normal = container_icon
     self.root.get_screen("main").container_status_label.text = container_status
