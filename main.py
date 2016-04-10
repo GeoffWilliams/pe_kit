@@ -15,6 +15,7 @@ from kivy.uix.textinput import TextInput
 from kivy.uix.dropdown import DropDown
 from kivy.uix.popup import Popup
 from kivy.uix.checkbox import CheckBox
+from kivy.core.clipboard import Clipboard
 from docker import Client
 from docker.utils import kwargs_from_env
 import webbrowser
@@ -39,6 +40,7 @@ from kivy.properties import ObjectProperty
 import dateutil.parser
 import datetime
 import ssl
+import textwrap
 
 class Settings:
   DEFAULTS_FILE = os.path.dirname(os.path.realpath(__file__)) + "/defaults.cfg"
@@ -255,10 +257,25 @@ class MainScreen(Screen):
     uptime = self.controller.container_alive()
     if uptime:
       pe_status = self.controller.pe_status()
+      
       message = "Docker container is alive, up {uptime} seconds.  PE is {pe_status}".format(
         uptime = uptime,
         pe_status = pe_status
       )
+      if self.settings.expose_ports and pe_status == "running":
+        command = "curl -k https://{docker_address}:8140/packages/current/install.bash | sudo bash".format(
+          docker_address=self.controller.docker_address
+        )
+        Clipboard.copy(command)
+        
+        message += textwrap.dedent("""
+        You can install the puppet agent into a VM by running:
+        
+        {command}
+        
+        This command has been copied to your clipboard for you (BUT IT DOESN'T FUCKING WORK, SOMETHINGS BROKEN and its not just /etc/hosts!)
+        """.format(command=command))
+      
       pe_status = self.controller.pe_status()
     else:
       message = "Docker container is not running"
@@ -356,6 +373,7 @@ class Controller:
   # images available locally
   local_images = []
   docker_url = None
+  docker_address = "unknown"
   pe_url = None
   dockerbuild_url = None
   pe_console_port = 0
@@ -454,7 +472,7 @@ class Controller:
         kwargs['tls'].assert_hostname = False
 
         # save the boot2docker IP for use when we open browser windows
-        self.docker_url = kwargs['base_url'] 
+        self.docker_url = kwargs['base_url']
 
         self.cli = Client(**kwargs)
 
@@ -600,6 +618,10 @@ class Controller:
     self.pe_console_port = container_info["NetworkSettings"]["Ports"]["443/tcp"][0]["HostPort"]
     self.dockerbuild_port = container_info["NetworkSettings"]["Ports"]["9000/tcp"][0]["HostPort"]
     parsed = urlparse(self.docker_url)
+    
+    print "*(***********D*D**D*D*D**D*)"
+    pp.pprint(parsed)
+    self.docker_address = parsed.netloc.split(":")[0]
 
     # update the URL to browse to for PE console
     self.pe_url = parsed._replace(
@@ -835,7 +857,7 @@ class PeKitApp(App):
     self.root.get_screen("main").docker_status_image.background_normal = daemon_icon
     self.root.get_screen("main").container_delete_image.source = container_icon
     self.root.get_screen("main").container_status_label.text = container_status
-    self.root.get_screen("main").pe_status_image.source = pe_status_icon
+    self.root.get_screen("main").pe_status_image.background_normal = pe_status_icon
 
     
 # non-class logger
