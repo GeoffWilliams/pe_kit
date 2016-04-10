@@ -205,7 +205,8 @@ class SettingsScreen(Screen):
       
       # start delete/download in own thread
       threading.Thread(target=action, args=[button.tag]).start()
-        
+
+    
     if self.controller.images_refreshed:
       self.image_management_layout.clear_widgets()
       for image in self.controller.images:
@@ -301,7 +302,11 @@ class MainScreen(Screen):
   def toggle_action_layout(self, show):
     if show:
       # hidden -> show
-      self.action_layout_holder.add_widget(self.action_layout)    
+      self.action_layout_holder.add_widget(self.action_layout)
+
+      if self.controller.update_available:
+        App.get_running_app().info("An new image is available, check settings to download")
+           
     else:
       # showing -> hide
       self.action_layout_holder.clear_widgets()
@@ -322,14 +327,6 @@ class MainScreen(Screen):
       self.advanced_layout.remove_widget(self.log_textinput)
     else :
       self.advanced_layout.add_widget(self.log_textinput)
-
-      
-  def on_download_checkbox(self, checkbox, value):
-    if value:
-      self.download_images.append(checkbox.tag)
-    else:
-      self.download_images.remove(checkbox.tag)
-
 
     
   def dockerbuild(self):
@@ -392,6 +389,7 @@ class Controller:
   settings = Settings()
   container_status = False
   daemon_status = False
+  update_available = False
   
   # app/program is running - threads use this to see if they should 
   # continue executing
@@ -408,7 +406,7 @@ class Controller:
 
   def delete_image(self, tag):
     self.cli.remove_image(
-      tag
+      self.DOCKER_IMAGE_PATTERN + ":" + tag
     )
     self.refresh_images()
       
@@ -589,11 +587,14 @@ class Controller:
     
   def start_pe(self):
     status = False
-    selected_image = self.app.get_selected_image()
+    tag = self.app.get_selected_image()
+    selected_image = self.DOCKER_IMAGE_PATTERN + ":" + tag
+
     if self.container_alive():
       status = True
     else:
-      if selected_image and selected_image.startswith(self.DOCKER_IMAGE_PATTERN):
+      if tag:
+        selected_image = self.DOCKER_IMAGE_PATTERN + ":" + tag
         port_bindings = self.port_bindings()
         self.container = self.cli.create_container(
           image=selected_image,
@@ -657,6 +658,18 @@ class Controller:
     self.update_local_images()
     self.update_downloadable_images()
     
+    # since PE releases are somewhat ISO 8601 format (not really) we 
+    # can sort alphabetically to see if we are up to date
+    newest_download_tag = self.downloadable_images[0]
+    newest_local_tag = self.local_images[0]
+    
+    # set flag here and pick it up in the render code
+    if newest_download_tag > newest_local_tag:
+      self.update_available = True
+    else:
+      self.update_available = False
+    
+    
     # now combine into a hash
     self.images = []
     for tag in self.downloadable_images:
@@ -678,7 +691,7 @@ class Controller:
 
   def update_local_images(self):
     """
-    re-create teh list of locally downloaded images that are ready to
+    re-create the list of locally downloaded images that are ready to
     run.  Updates the self.local_images array to be a list of tags
     present locally
     """
@@ -689,9 +702,13 @@ class Controller:
 
       for docker_image in docker_images:
         image_name = docker_image["RepoTags"][0]
+        
+        # split off the image name and just get the tag
+        tag = image_name.split(":")[-1]
+        
         #self.log("found image " + image_name)
         if image_name.startswith(self.DOCKER_IMAGE_PATTERN):
-          self.local_images.append(image_name)
+          self.local_images.append(tag)
       self.local_images.sort(reverse=True)
 
   # images available for download    
@@ -714,7 +731,8 @@ class Controller:
         if not self.tag_exists_locally(tag):
           self.downloadable_images.append(tag)      
     except urllib2.URLError:
-      print("internet failed!")
+      self.logger.error("failed to reach docker hub - no internet?")
+    self.downloadable_images.sort(reverse=True)
           
   # test if a tag has already been downloaded    
   def tag_exists_locally(self, tag):
