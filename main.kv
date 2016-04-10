@@ -112,16 +112,12 @@ ScreenManagement:
                 size_hint: (0.4, 1)
             # start/stop container
             Button:
+                id: container_delete_image
                 on_release: app.controller.toggle_docker_container()
-                size_hint: (None, None)
-                Image:
-                    id: container_delete_image
-                    allow_stretch: True
-                    center_x: self.parent.center_x
-                    center_y: self.parent.center_y
-                    height: dp(40)
-                    width: dp(40)
-                    source: 'icons/play.png'
+                size_hint_y: None
+                size_hint_x: None
+                border: (0, 0, 0, 0)
+                background_normal: 'icons/play.png'
 
             Button:
                 id: pe_status_image
@@ -153,6 +149,7 @@ ScreenManagement:
 
     BoxLayout:
         orientation: 'vertical'
+        size_hint: (1, 1)
         
         # banner
         Label:
@@ -160,15 +157,12 @@ ScreenManagement:
             font_size: '40sp'
             size_hint: (1, 0.2)
 
-        # Image Management
-        ScrollView:
-            size: self.size        
-            GridLayout:
-                id: image_management_layout
-                cols: 3
-                cols_minimum: { 0: dp(600), 1: dp(30), 2: dp(30)}
-                row_default_height: dp(20)
-
+        # Image Management     
+        GridLayout:
+            id: image_management_layout
+            cols: 3
+            cols_minimum: { 0: dp(700), 1: dp(25), 2: dp(25)}
+            row_default_height: dp(25)
 
         #
         # Checkboxes/Settings file

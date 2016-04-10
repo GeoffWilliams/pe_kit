@@ -174,7 +174,7 @@ class SettingsScreen(Screen):
     
   def get_image_button(self, status):
     if status == "downloadable":
-      icon = "icons/download.png"
+      icon = "icons/available.png"
     elif status == "local":
       icon = "icons/delete.png"
     else:
@@ -184,7 +184,6 @@ class SettingsScreen(Screen):
     button = Button()
     button.background_normal = icon
     button.border = (0, 0, 0, 0)
-    button.size_hint = (None, None)
     button.width = "20dp"
     button.height = "20dp"
   
@@ -198,7 +197,7 @@ class SettingsScreen(Screen):
       if button.status == "downloadable":
         # start download
         action = self.controller.download_image
-        button.background_normal = "icons/wait.png"
+        button.background_normal = "icons/download.png"
       elif button.status == "local":
         # delete
         action = self.controller.delete_image
@@ -217,11 +216,20 @@ class SettingsScreen(Screen):
         status_button.tag = image["name"]
         status_button.status = image["status"]
         status_button.bind(on_release=image_action)
-        if image["status"] == "local":
-          selected_button = ToggleButton(text="selected", group="image")
-        else:
-          # use a blank label as a spacer
+        if self.settings.use_latest_image:
+          # add a blank label as a spacer to avoid breaking the display
           selected_button = Label()
+        else:
+          if image["status"] == "local":
+            selected_button = ToggleButton()
+            selected_button.background_normal="icons/deselected_image.png"
+            selected_button.background_down="icons/selected_image.png"
+            selected_button.border = (0, 0, 0, 0)
+            selected_button.width = "20dp"
+            selected_button.height = "20dp"
+          else:
+            # use a blank label as a spacer
+            selected_button = Label()
           
         self.image_management_layout.add_widget(name_label)
         self.image_management_layout.add_widget(status_button)
@@ -855,7 +863,7 @@ class PeKitApp(App):
     
       
     self.root.get_screen("main").docker_status_image.background_normal = daemon_icon
-    self.root.get_screen("main").container_delete_image.source = container_icon
+    self.root.get_screen("main").container_delete_image.background_normal = container_icon
     self.root.get_screen("main").container_status_label.text = container_status
     self.root.get_screen("main").pe_status_image.background_normal = pe_status_icon
 
