@@ -494,9 +494,13 @@ class Controller:
                             self.logger.info("killing orphaned container")
                             self.cli.remove_container(self.DOCKER_CONTAINER, force=True)
                         else:
-                            self.logger.info("reusing existing container")
+                            self.logger.info("inspecting existing container")
                             self.container = self.cli.inspect_container(self.DOCKER_CONTAINER)
-                            self.munge_urls()
+                            if self.container["State"]["Running"]:
+                                self.munge_urls()
+                            # else container exists but has not yet been started, leave it
+                            # alone until its started by the start_automatically flag or 
+                            # a user manually pressing the play button
                 except docker.errors.NotFound:
                     self.logger.info("container not running, OK to start new one")
 
@@ -593,26 +597,37 @@ class Controller:
             if tag:
                 selected_image = self.DOCKER_IMAGE_PATTERN + ":" + tag
                 port_bindings = self.port_bindings()
-                self.container = self.cli.create_container(
-                  image=selected_image,
-                  name=self.DOCKER_CONTAINER,
-                  hostname=self.PE_HOSTNAME,
-                  detach=True,
-                  volumes = [
-                      "/sys/fs/cgroup",
-                  ],
-                  ports = port_bindings.keys(),
-                  host_config=self.cli.create_host_config(port_bindings=port_bindings)
-                )
-
+                try:
+                    self.container = self.cli.create_container(
+                      image=selected_image,
+                      name=self.DOCKER_CONTAINER,
+                      hostname=self.PE_HOSTNAME,
+                      detach=True,
+                      volumes = [
+                          "/sys/fs/cgroup",
+                      ],
+                      ports = port_bindings.keys(),
+                      host_config=self.cli.create_host_config(port_bindings=port_bindings)
+                    )
+                except docker.errors.APIError as e:
+                    if e.response.status_code == 409:
+                        self.logger.error("Container exists - starting it")
+                        self.container = self.cli.inspect_container(self.DOCKER_CONTAINER)
+                        #self.app.info("Starting existing container...")
+                        
+                    else:
+                        self.logger.error("Unknown Docker error follows")
+                        self.logger.exception(e)
+                        self.app.error("Unknown Docker error:  " + e.message)
+                    
+                self.logger.info("starting container " + self.container.get('Id'))
                 resp = self.cli.start(
                   container=self.container.get('Id'),
                   privileged=True,
                   port_bindings=port_bindings
 
                 )
-
-
+                self.logger.info(self.container)
                 self.munge_urls()
 
                 status = True
