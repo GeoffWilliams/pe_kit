@@ -460,7 +460,7 @@ class Controller:
                   pe_url = self.pe_url,
                   message = e.reason,
                 ))
-                status = "stopped"
+                status = "loading"
         else:
             status = "error"
 
