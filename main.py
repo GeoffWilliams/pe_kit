@@ -83,6 +83,9 @@ class DockerMachine():
     """
 
     logger = logging.getLogger(__name__)
+    
+    # is a start/stop operation in progress?
+    in_progress = False
 
     def __init__(self):
         self.logger.info("adjusted path for /usr/local/bin")
@@ -101,13 +104,16 @@ class DockerMachine():
     def start(self):
         # start the daemon if its not already running
         started = False
-        if self.status() != "Running":
+        if not self.in_progress and self.status() != "Running":
             try:
+                self.in_progress = True
                 out = subprocess.check_output(["docker-machine", "start"])
+                self.in_progress = False
+
                 if self.status() == "Running":
                     self.logger.info("docker-machine started OK")
                     started = True
-            except CalledProcessError as e:
+            except subprocess.CalledProcessError as e:
                 self.logger.error("failed to start docker", e)
 
         else:
@@ -291,11 +297,9 @@ class MainScreen(Screen):
         App.get_running_app().info(message)
 
     def docker_status_info(self):
-        if self.controller.daemon_alive():
-            message = "Docker daemon is alive"
-        else:
-            message = "Docker daemon is dead"
-        App.get_running_app().info(message)
+        App.get_running_app().info(
+            "Docker daemon is {alive}".format(alive=self.controller.daemon_alive())
+        )
 
     def toggle_action_layout(self, show):
         if show:
@@ -386,8 +390,9 @@ class Controller:
     app = None
     settings = Settings()
     container_status = False
-    daemon_status = False
+    daemon_status = "stopped"
     update_available = False
+    dm = None
 
     # app/program is running - threads use this to see if they should
     # continue executing
@@ -426,7 +431,7 @@ class Controller:
         while (self.running):
             self.daemon_status = self.daemon_alive()
 
-            if self.daemon_status:
+            if self.daemon_status == "running":
                 self.container_status = self.container_alive()
             else:
                 self.container_status = False
@@ -470,8 +475,8 @@ class Controller:
     def docker_init(self):
         #  boot2docker specific hacks in use - see:  http://docker-py.readthedocs.org/en/latest/boot2docker/
 
-        dm = DockerMachine()
-        if dm.start():
+        self.dm = DockerMachine()
+        if self.dm.start():
             print "***************" + os.environ["DOCKER_CERT_PATH"]
             kwargs = kwargs_from_env()
 
@@ -520,20 +525,22 @@ class Controller:
 
     def daemon_alive(self):
         """
-        Return True if docker daemon is alive, otherwise false
+        Return 'running' if docker daemon is alive, 'loading' if starting, 'stopped' otherwise
         """
         if self.cli:
             try:
                 version_info = self.cli.version()
                 if "Version" in version_info:
-                    alive = True
+                    alive = "running"
                 else:
-                    alive = False
+                    alive = "stopped"
             except requests.exceptions.ConnectionError:
                 self.logger.error("urllib3 error talking to docker daemon")
-                alive = False
+                alive = "stopped"
+        elif self.dm.in_progress:
+            alive = "loading"
         else:
-            alive = False
+            alive = "stopped"
         return alive
 
     def container_alive(self):
@@ -871,7 +878,7 @@ class PeKitApp(App):
         container_icon = "icons/play.png"
         pe_status = "stopped"
 
-        if self.controller.daemon_status:
+        if self.controller.daemon_status == "running":
             self.logger.debug("docker daemon ok :)")
             daemon_icon = "icons/ok.png"
 
@@ -881,7 +888,9 @@ class PeKitApp(App):
                 container_status = "up {uptime} seconds".format(uptime=uptime)
                 container_icon = "icons/delete.png"
                 pe_status = self.controller.pe_status()
-
+        elif self.controller.daemon_status == "loading":
+            self.logger.error("docker daemon starting!")
+            daemon_icon = "icons/wait.png"                   
         else:
             self.logger.error("docker daemon dead!")
             daemon_icon = "icons/error.png"
