@@ -680,7 +680,12 @@ class Controller:
         # since PE releases are somewhat ISO 8601 format (not really) we
         # can sort alphabetically to see if we are up to date
         newest_download_tag = self.downloadable_images[0]
-        newest_local_tag = self.local_images[0]
+
+        # there may be no local images yet if this is a fresh docker install
+        if len(self.local_images):
+            newest_local_tag = self.local_images[0]
+        else:
+            newest_local_tag = None
 
         # set flag here and pick it up in the render code
         if newest_download_tag > newest_local_tag:
