@@ -834,6 +834,12 @@ class PeKitApp(App):
 
         # monitor the docker daemon and container
         Clock.schedule_interval(self.daemon_monitor, 3)
+        
+        # disclaimer message
+        self.info(
+            "Warning:  This tool is for test and evaulation use only\n"
+            "and is not supported by Puppet.  The images used are NOT\n"
+            "secure and must not be used for production use.")
 
     def on_stop(self):
         self.controller.running = False
