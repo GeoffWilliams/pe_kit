@@ -36,11 +36,11 @@ ScreenManagement:
     advanced_layout_holder: advanced_layout_holder
     app_status_label: app_status_label
     container_status_label:container_status_label
-    container_delete_image: container_delete_image
-    docker_status_image: docker_status_image
+    container_delete_button: container_delete_button
+    docker_status_button: docker_status_button
     action_layout_holder: action_layout_holder
     action_layout: action_layout.__self__
-    pe_status_image: pe_status_image
+    pe_status_button: pe_status_button
     console_button: console_button
     terminal_button: terminal_button
     run_puppet_button: run_puppet_button
@@ -138,7 +138,7 @@ ScreenManagement:
                 size_hint: (0.4, 1)
             # start/stop container
             Button:
-                id: container_delete_image
+                id: container_delete_button
                 on_release: app.controller.toggle_docker_container()
                 size_hint_y: None
                 size_hint_x: None
@@ -146,7 +146,7 @@ ScreenManagement:
                 background_normal: 'icons/blank.png'
 
             Button:
-                id: pe_status_image
+                id: pe_status_button
                 size_hint_y: None
                 size_hint_x: None
                 background_normal: 'icons/blank.png'
@@ -154,7 +154,7 @@ ScreenManagement:
                 on_release: root.pe_status_info()
 
             Button:
-                id: docker_status_image
+                id: docker_status_button
                 size_hint_y: None
                 size_hint_x: None
                 background_normal:  'icons/blank.png'

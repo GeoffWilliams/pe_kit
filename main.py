@@ -271,11 +271,11 @@ class MainScreen(Screen):
     advanced_layout_holder  = ObjectProperty(None)
     app_status_label        = ObjectProperty(None)
     container_status_label  = ObjectProperty(None)
-    container_delete_image  = ObjectProperty(None)
-    docker_status_image     = ObjectProperty(None)
+    container_delete_button = ObjectProperty(None)
+    docker_status_button    = ObjectProperty(None)
     action_layout_holder    = ObjectProperty(None)
     action_layout           = ObjectProperty(None)
-    pe_status_image         = ObjectProperty(None)
+    pe_status_button        = ObjectProperty(None)
     console_button          = ObjectProperty(None)
     terminal_button         = ObjectProperty(None)
     run_puppet_button       = ObjectProperty(None)
@@ -963,10 +963,10 @@ class PeKitApp(App):
             self.root.get_screen("main").run_puppet_button.disabled = True
             self.root.get_screen("main").dockerbuild_button.disabled = True
 
-        self.root.get_screen("main").docker_status_image.background_normal = daemon_icon
-        self.root.get_screen("main").container_delete_image.background_normal = container_icon
+        self.root.get_screen("main").docker_status_button.background_normal = daemon_icon
+        self.root.get_screen("main").container_delete_button.background_normal = container_icon
         self.root.get_screen("main").container_status_label.text = container_status
-        self.root.get_screen("main").pe_status_image.background_normal = pe_status_icon
+        self.root.get_screen("main").pe_status_button.background_normal = pe_status_icon
 
 
 # non-class logger
