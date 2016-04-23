@@ -278,6 +278,8 @@ class MainScreen(Screen):
     pe_status_image         = ObjectProperty(None)
     console_button          = ObjectProperty(None)
     terminal_button         = ObjectProperty(None)
+    run_puppet_button       = ObjectProperty(None)
+    dockerbuild_button      = ObjectProperty(None)
     settings                = Settings()
 
     def __init__(self, **kwargs):
@@ -364,9 +366,9 @@ class MainScreen(Screen):
             updated = current + level + message + "\n"
             self.log_textinput.text = updated
 
-    def pe_console(self, instance):
+    def pe_console(self):
 
-        self.info("Launching browser, please accept the certificate.\n"
+        App.get_running_app().info("Launching browser, please accept the certificate.\n"
                   "The username is 'admin' and the password is 'aaaaaaaa'")
 
         def open_browser(dt):
@@ -374,6 +376,17 @@ class MainScreen(Screen):
 
         # call the named callback in 2 seconds (delay without freezing)
         Clock.schedule_once(open_browser, 2)
+        
+    def pe_terminal(self):
+        App.get_running_app().info("Launching terminal, please lookout for a new window")
+
+        def open_terminal(dt):
+            Utils.docker_terminal("docker exec -ti {name} bash".format(
+              name=Controller.DOCKER_CONTAINER,
+            ))
+
+        # call the named callback in 2 seconds (delay without freezing)
+        Clock.schedule_once(open_terminal, 2)
 
 class MenuScreen(Screen):        
     """Simple menu of helpful links"""
@@ -834,28 +847,7 @@ class PeKitApp(App):
             self.error("failed to check for new releases, please check your internet connection")
             self.logger.exception(e)
             
-        
-        
-    def pe_console(self):
-        print("pe_console clicked!")
-        self.info("Launching browser, please accept the certificate! \nThe username is 'admin' and the password is 'aaaaaaaa'")
 
-        def open_browser(dt):
-            webbrowser.open_new(self.controller.pe_url)
-
-        # call the named callback in 2 seconds (delay without freezing)
-        Clock.schedule_once(open_browser, 2)
-
-    def pe_terminal(self):
-        self.info("Launching terminal, please lookout for a new window")
-
-        def open_terminal(dt):
-            Utils.docker_terminal("docker exec -ti {name} bash".format(
-              name=Controller.DOCKER_CONTAINER,
-            ))
-
-        # call the named callback in 2 seconds (delay without freezing)
-        Clock.schedule_once(open_terminal, 2)
 
     def build(self):
         self.controller = Controller()
@@ -956,14 +948,20 @@ class PeKitApp(App):
             pe_status_icon = "icons/puppet.png"
             self.root.get_screen("main").console_button.disabled = False
             self.root.get_screen("main").terminal_button.disabled = False
+            self.root.get_screen("main").run_puppet_button.disabled = False
+            self.root.get_screen("main").dockerbuild_button.disabled = False     
         elif pe_status == "loading":
             pe_status_icon = "icons/wait.png"
             self.root.get_screen("main").console_button.disabled = True
             self.root.get_screen("main").terminal_button.disabled = False
+            self.root.get_screen("main").run_puppet_button.disabled = False
+            self.root.get_screen("main").dockerbuild_button.disabled = False        
         else:
             pe_status_icon = "icons/disabled.png"
             self.root.get_screen("main").console_button.disabled = True
             self.root.get_screen("main").terminal_button.disabled = True
+            self.root.get_screen("main").run_puppet_button.disabled = True
+            self.root.get_screen("main").dockerbuild_button.disabled = True
 
         self.root.get_screen("main").docker_status_image.background_normal = daemon_icon
         self.root.get_screen("main").container_delete_image.background_normal = container_icon

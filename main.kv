@@ -43,6 +43,8 @@ ScreenManagement:
     pe_status_image: pe_status_image
     console_button: console_button
     terminal_button: terminal_button
+    run_puppet_button: run_puppet_button
+    dockerbuild_button: dockerbuild_button
     
     BoxLayout:
         orientation: 'vertical'
@@ -81,14 +83,14 @@ ScreenManagement:
                     Button:
                         id: console_button
                         text: 'Console'
-                        on_press: app.pe_console()
+                        on_press: root.pe_console()
                         disabled: True
 
                     # terminal
                     Button:
                         id: terminal_button
                         text: 'Terminal'
-                        on_press: app.pe_terminal()
+                        on_press: root.pe_terminal()
 
                 #
                 # Advanced
@@ -106,11 +108,13 @@ ScreenManagement:
 
                         # run puppet
                         Button:
+                            id: run_puppet_button
                             text:  'Run Puppet'
                             on_release: root.run_puppet()
 
                         # dockerbuild
                         Button:
+                            id: dockerbuild_button
                             text: 'Dockerbuild'
                             on_release: root.dockerbuild()
 
