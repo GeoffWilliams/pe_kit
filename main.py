@@ -358,7 +358,7 @@ class MainScreen(Screen):
 
     def run_puppet(self):
         App.get_running_app().info("running puppet on master")
-        self.controller.run_puppet()
+        threading.Thread(target=self.controller.run_puppet).start()
 
     def log(self, message, level="[info]  "):
         current = self.log_textinput.text
@@ -885,7 +885,10 @@ class PeKitApp(App):
             self.controller.stop_docker_containers()
 
     def get_selected_image(self):
-        if self.settings.use_latest_image:
+        if len(self.controller.local_images) == 0:
+            # error loading local images or none available
+            selected = None
+        elif self.settings.use_latest_image:
             selected = self.controller.local_images[0]
         else:
             try:
