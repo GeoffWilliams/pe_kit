@@ -65,6 +65,7 @@ class Settings:
     use_latest_image = True
     shutdown_on_exit = True
     expose_ports = True
+    selected_image = None
 
     def __init__(self):
         self.__dict__ = self.__shared_state
@@ -76,6 +77,7 @@ class Settings:
         self.config.set("main", "use_latest_image", self.use_latest_image)
         self.config.set("main", "shutdown_on_exit", self.shutdown_on_exit)
         self.config.set("main", "expose_ports", self.expose_ports)
+        self.config.set("main", "selected_image", self.selected_image)
 
         self.config.write(open(self.CONFIG_FILE, 'w'))
 
@@ -88,6 +90,7 @@ class Settings:
         self.use_latest_image = self.config.getboolean("main","use_latest_image")
         self.shutdown_on_exit = self.config.getboolean("main", "shutdown_on_exit")
         self.expose_ports = self.config.getboolean("main", "expose_ports")
+        self.selected_image = self.config.get("main", "selected_image")
 
 class DockerMachine():
     """
@@ -187,9 +190,9 @@ class SettingsScreen(Screen):
         self.settings.kill_orphans        = self.kill_orphans_checkbox.active
         self.settings.shutdown_on_exit    = self.shutdown_on_exit_checkbox.active
         self.settings.expose_ports        = self.expose_ports_checkbox.active
+        self.settings.selected_image      = App.get_running_app().get_selected_image()
 
         self.settings.save()
-        #App.get_running_app()
         App.get_running_app().root.current = 'main'
 
     def get_image_button(self, status):
@@ -226,7 +229,6 @@ class SettingsScreen(Screen):
             # start delete/download in own thread
             threading.Thread(target=action, args=[button.tag]).start()
 
-
         if self.controller.images_refreshed:
             self.image_management_layout.clear_widgets()
             for image in self.controller.images:
@@ -249,7 +251,11 @@ class SettingsScreen(Screen):
                         selected_button.width = "20dp"
                         selected_button.height = "20dp"
                         selected_button.group = "selected_image"
-                        selected_button.image_name = image["name"]
+                        
+                        selected_image = image["name"]
+                        selected_button.image_name = selected_image
+                        if selected_image == self.settings.selected_image:
+                            selected_button.state = "down"
                     else:
                         # use a blank label as a spacer
                         selected_button = Label()
