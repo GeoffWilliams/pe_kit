@@ -104,8 +104,8 @@ class DockerMachine():
     def start(self):
         # start the daemon if its not already running
         started = False
-        if not self.in_progress and self.status() != "Running":
-            try:
+        try:
+            if not self.in_progress and self.status() != "Running":
                 self.in_progress = True
                 out = subprocess.check_output(["docker-machine", "start"])
                 self.in_progress = False
@@ -113,23 +113,23 @@ class DockerMachine():
                 if self.status() == "Running":
                     self.logger.info("docker-machine started OK")
                     started = True
-            except subprocess.CalledProcessError as e:
-                self.logger.error("failed to start docker", e)
+            else:
+                started = True
+                self.logger.info("docker-machine already running")
 
-        else:
-            started = True
-            self.logger.info("docker-machine already running")
+            # setup the docker environment variables if we managed to start the daemon
+            if started:
+                out = subprocess.check_output(["docker-machine", "env"]).split("\n")
+                for line in out:
+                    if not line.startswith('#') and line != "":
+                        key = line.split("=")[0].replace('export ', '')
+                        value = line.split("=")[1].replace('"','')
 
-        # setup the docker environment variables if we managed to start the daemon
-        if started:
-            out = subprocess.check_output(["docker-machine", "env"]).split("\n")
-            for line in out:
-                if not line.startswith('#') and line != "":
-                    key = line.split("=")[0].replace('export ', '')
-                    value = line.split("=")[1].replace('"','')
-
-                    self.logger.info("export {key}={value}".format(key=key, value=value))
-                    os.environ[key] = value
+                        self.logger.info("export {key}={value}".format(key=key, value=value))
+                        os.environ[key] = value
+        except subprocess.CalledProcessError as e:
+            self.logger.error("Error getting running docker-machine command, exception follows")
+            self.logger.exception(e)
 
         return started
 
@@ -477,12 +477,11 @@ class Controller:
 
         self.dm = DockerMachine()
         if self.dm.start():
-            print "***************" + os.environ["DOCKER_CERT_PATH"]
             kwargs = kwargs_from_env()
 
             if 'tls' not in kwargs:
                 # daemon not setup/running
-                self.app.error("Couldn't find docker!  Please run from Docker Quickstart Terminal!")
+                self.app.error("Docker could not be started, please check your system")
             else:
                 # docker ok
                 kwargs['tls'].assert_hostname = False
@@ -537,7 +536,7 @@ class Controller:
             except requests.exceptions.ConnectionError:
                 self.logger.error("urllib3 error talking to docker daemon")
                 alive = "stopped"
-        elif self.dm.in_progress:
+        elif self.dm and self.dm.in_progress:
             alive = "loading"
         else:
             alive = "stopped"
@@ -791,8 +790,25 @@ class PeKitApp(App):
     """
     logger = logging.getLogger(__name__)
     settings = Settings()
-
-
+    version = "v0.1.7"
+    
+    def check_update(self):
+        """check for new release of the app"""
+        try:
+            r = json.loads(
+                urllib2.urlopen("https://api.github.com/repos/geoffwilliams/pe_kit/releases", timeout=5).read()
+            )
+            latest_tag = r[0]["tag_name"]
+            if latest_tag != self.version:
+                self.info(
+                    "A new version of PE_Kit is available ({latest_tag}), you are running {version}\n" "please go to https://github.com/GeoffWilliams/pe_kit/releases to download the\n"
+                    "new version".format(latest_tag=latest_tag, version=self.version))
+        except (TypeError, urllib2.URLError) as e:
+            self.error("failed to check for new releases, please check your internet connection")
+            self.logger.exception(e)
+            
+        
+        
     def pe_console(self):
         print("pe_console clicked!")
         self.info("Launching browser, please accept the certificate! \nThe username is 'admin' and the password is 'aaaaaaaa'")
@@ -841,6 +857,9 @@ class PeKitApp(App):
             "and is not supported by Puppet.  The images used are NOT\n"
             "secure and must not be used for production use.")
 
+        # check for newer version
+        self.check_update()        
+        
     def on_stop(self):
         self.controller.running = False
         if self.settings.shutdown_on_exit:
