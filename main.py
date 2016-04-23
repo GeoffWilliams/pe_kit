@@ -790,7 +790,7 @@ class PeKitApp(App):
     """
     logger = logging.getLogger(__name__)
     settings = Settings()
-    version = "v0.1.7"
+    __version__ = "v0.1.7"
     
     def check_update(self):
         """check for new release of the app"""
@@ -799,7 +799,7 @@ class PeKitApp(App):
                 urllib2.urlopen("https://api.github.com/repos/geoffwilliams/pe_kit/releases", timeout=5).read()
             )
             latest_tag = r[0]["tag_name"]
-            if latest_tag != self.version:
+            if latest_tag != self.__version__:
                 self.info(
                     "A new version of PE_Kit is available ({latest_tag}), you are running {version}\n" "please go to https://github.com/GeoffWilliams/pe_kit/releases to download the\n"
                     "new version".format(latest_tag=latest_tag, version=self.version))
