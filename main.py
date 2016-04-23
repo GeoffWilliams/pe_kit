@@ -366,7 +366,8 @@ class MainScreen(Screen):
 
     def pe_console(self, instance):
 
-        self.info("Launching browser, please accept the certificate and wait approximately 2 minutes.\n  When the console loads, the username is 'admin' and the password is 'aaaaaaaa'")
+        self.info("Launching browser, please accept the certificate.\n"
+                  "The username is 'admin' and the password is 'aaaaaaaa'")
 
         def open_browser(dt):
             webbrowser.open_new(self.controller.pe_url)
@@ -374,7 +375,19 @@ class MainScreen(Screen):
         # call the named callback in 2 seconds (delay without freezing)
         Clock.schedule_once(open_browser, 2)
 
-
+class MenuScreen(Screen):        
+    """Simple menu of helpful links"""
+    
+    def __init__(self, **kwargs):
+        super(MenuScreen, self).__init__(**kwargs)
+    
+    def about(self):
+        App.get_running_app().info("PE_Kit {version}".format(version = PeKitApp.__version__))
+        
+    def help(self):
+        webbrowser.open_new("https://github.com/GeoffWilliams/pe_kit#help")
+        
+    
 # borg class, see http://code.activestate.com/recipes/66531-singleton-we-dont-need-no-stinkin-singleton-the-bo/
 class Controller:
     """

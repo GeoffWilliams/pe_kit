@@ -25,6 +25,7 @@
 ScreenManagement:
     MainScreen:
     SettingsScreen:
+    MenuScreen:
   
 <MainScreen>:
     name: 'main'
@@ -58,13 +59,18 @@ ScreenManagement:
                     font_size: '40sp'
                              
             # settings
-            #AnchorLayout:
             Button:
                 size_hint: (None, None)
                 border: (0, 0, 0, 0)
                 on_release: app.root.current = 'settings'
                 background_normal: 'icons/settings.png'
-                    
+                
+            # menu
+            Button:
+                size_hint: (None, None)
+                border: (0, 0, 0, 0)
+                on_release: app.root.current = 'menu'
+                background_normal: 'icons/menu.png'                    
         BoxLayout:
             id: action_layout_holder
             BoxLayout:
@@ -226,3 +232,17 @@ ScreenManagement:
             on_release: root.back()
             text: 'Back'
             size_hint: (1, 0.2)
+            
+<MenuScreen>:
+    name: 'menu'
+    
+    BoxLayout:
+        orientation: 'vertical'
+        
+        Button:
+            text: 'About'
+            on_release: root.about()
+            
+        Button:
+            text: 'Help'
+            on_release: root.help()
