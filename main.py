@@ -410,7 +410,9 @@ class MenuScreen(Screen):
         
     def help(self):
         webbrowser.open_new("https://github.com/GeoffWilliams/pe_kit#help")
-        
+    
+    def report_bug(self):
+        webbrowser.open_new('https://github.com/GeoffWilliams/pe_kit/issues/new')
     
 # borg class, see http://code.activestate.com/recipes/66531-singleton-we-dont-need-no-stinkin-singleton-the-bo/
 class Controller:

@@ -254,5 +254,9 @@ ScreenManagement:
             on_release: root.help()
             
         Button:
+            text: 'Report bug'
+            on_release: root.report_bug()
+            
+        Button:
             text: 'Back'
             on_release: app.root.current = 'main'
