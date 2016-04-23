@@ -213,7 +213,7 @@ class SettingsScreen(Screen):
         return button
 
 
-    def update_image_managment(self, x):
+    def update_image_managment(self, x=None, force_refresh=False, ):
         def image_action(button):
             self.logger.info(
               "image action: {tag}, {status}".format(tag=button.tag, status=button.status))
@@ -229,7 +229,7 @@ class SettingsScreen(Screen):
             # start delete/download in own thread
             threading.Thread(target=action, args=[button.tag]).start()
 
-        if self.controller.images_refreshed:
+        if self.controller.images_refreshed or force_refresh:
             self.image_management_layout.clear_widgets()
             for image in self.controller.images:
                 name_label = Label(text=image["name"])
@@ -239,7 +239,7 @@ class SettingsScreen(Screen):
                 status_button.tag = image["name"]
                 status_button.status = image["status"]
                 status_button.bind(on_release=image_action)
-                if self.settings.use_latest_image:
+                if self.use_latest_image_checkbox.active:
                     # add a blank label as a spacer to avoid breaking the display
                     selected_button = Label()
                 else:
@@ -427,6 +427,10 @@ class Controller:
 
     # images available locally
     local_images = []
+    
+    # combined local and remote images
+    images = []
+    
     docker_url = None
     docker_address = "unknown"
     pe_url = None
@@ -907,14 +911,18 @@ class PeKitApp(App):
     def error(self, message):
         return self.popup(title='Error!', message=message)
 
-    def popup(self, title, message):
+    def popup(self, title, message, question=False):
         def close(x):
             popup.dismiss()
 
         popup_content = BoxLayout(orientation="vertical")
         popup_content.add_widget(Label(text=message))
         button_layout = AnchorLayout()
-        button_layout.add_widget(Button(text="OK", on_press=close))
+        if question:
+            button_layout.add_widget(Button(text="Yes", on_press=close))
+            button_layout.add_widget(Button(text="No", on_press=close))
+        else:
+            button_layout.add_widget(Button(text="OK", on_press=close))
         popup_content.add_widget(button_layout)
         popup = Popup(
           title=title,

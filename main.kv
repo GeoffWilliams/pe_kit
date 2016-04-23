@@ -203,8 +203,10 @@ ScreenManagement:
         GridLayout:
             cols: 2
             
+            # latest image
             CheckBox:
                 id: use_latest_image_checkbox
+                on_active: root.update_image_managment(force_refresh=True)
             Label:
                 text: 'Use latest image'
         
