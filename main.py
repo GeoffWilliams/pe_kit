@@ -221,6 +221,12 @@ class SettingsScreen(Screen):
                 # start download in own thread
                 button.background_normal = "icons/download.png"
                 threading.Thread(target=self.controller.download_image, args=[button.tag]).start()
+            elif button.tag in self.controller.active_downloads:
+                # currently downloading
+                App.get_running_app().question(
+                    "Image {tag} is downloading, cancel?".format(tag=button.tag),
+                    yes_callback=partial(self.controller.stop_download, button.tag)
+                )
             elif button.status == "local":
                 # delete
                 App.get_running_app().question(
@@ -442,6 +448,7 @@ class Controller:
     daemon_status = "stopped"
     update_available = False
     dm = None
+    active_downloads = []
 
     # app/program is running - threads use this to see if they should
     # continue executing
@@ -463,17 +470,24 @@ class Controller:
         self.refresh_images()
 
     def download_image(self, tag):
+        self.active_downloads.append(tag)
         for line in self.cli.pull(
           repository = self.DOCKER_IMAGE_PATTERN,
           tag = tag,
           stream = True,
         ):
-            if self.running:
+            if self.running and tag in self.active_downloads:
                 self.logger.debug(line)
             else:
-                raise Exception("Aborting download because quit!")
+                raise Exception("Aborting download because quit/cancel!")
+        self.stop_download()
         self.refresh_images()
-
+        
+    def stop_download(self, tag):
+        """abort a download by removing it from the list of active downloads"""
+        if tag in self.active_downloads:
+            self.active_downloads.remove(tag)
+        self.refresh_images()
 
     def update_status(self):
         """daemon thread to check if docker and container are alive"""
