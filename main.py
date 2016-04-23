@@ -55,6 +55,7 @@ import dateutil.parser
 import datetime
 import ssl
 import textwrap
+from functools import partial
 
 class Settings:
     DEFAULTS_FILE = os.path.dirname(os.path.realpath(__file__)) + "/defaults.cfg"
@@ -212,23 +213,21 @@ class SettingsScreen(Screen):
 
         return button
 
-
     def update_image_managment(self, x=None, force_refresh=False, ):
         def image_action(button):
             self.logger.info(
               "image action: {tag}, {status}".format(tag=button.tag, status=button.status))
             if button.status == "downloadable":
-                # start download
-                action = self.controller.download_image
+                # start download in own thread
                 button.background_normal = "icons/download.png"
+                threading.Thread(target=self.controller.download_image, args=[button.tag]).start()
             elif button.status == "local":
                 # delete
-                action = self.controller.delete_image
-            self.logger.info(button.tag)
-
-            # start delete/download in own thread
-            threading.Thread(target=action, args=[button.tag]).start()
-
+                App.get_running_app().question(
+                    "really delete image {tag}?".format(tag=button.tag), 
+                    yes_callback=partial(self.controller.delete_image, button.tag)
+                )
+            
         if self.controller.images_refreshed or force_refresh:
             self.image_management_layout.clear_widgets()
             for image in self.controller.images:
@@ -911,13 +910,20 @@ class PeKitApp(App):
     def error(self, message):
         return self.popup(title='Error!', message=message)
 
-    def popup(self, title, message, question=False):
-        def close(x):
+    def popup(self, title, message, question=False, yes_callback=None, no_callback=None):
+        def close(button):
+            text = button.text
+            popup.dismiss()
+            if text == "Yes" and yes_callback:
+                yes_callback()
+            elif text == "No" and no_callback:
+                no_callback()
+
             popup.dismiss()
 
         popup_content = BoxLayout(orientation="vertical")
         popup_content.add_widget(Label(text=message))
-        button_layout = AnchorLayout()
+        button_layout = BoxLayout()
         if question:
             button_layout.add_widget(Button(text="Yes", on_press=close))
             button_layout.add_widget(Button(text="No", on_press=close))
@@ -933,6 +939,16 @@ class PeKitApp(App):
         popup.open()
         return popup
 
+    def question(self, message, yes_callback=None, no_callback=None):
+        """Ask a yes/no question with an optional callback attached to each choice"""
+        x = self.popup(
+            title="Question", 
+            message=message, 
+            question=True, 
+            yes_callback=yes_callback,
+            no_callback=no_callback
+        )
+    
     def info(self, message):
         return self.popup(title='Information', message=message)
 
