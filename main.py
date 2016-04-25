@@ -892,7 +892,7 @@ class PeKitApp(App):
             if latest_tag != self.__version__:
                 self.info(
                     "A new version of PE_Kit is available ({latest_tag}), you are running {version}\n" "please go to https://github.com/GeoffWilliams/pe_kit/releases to download the\n"
-                    "new version".format(latest_tag=latest_tag, version=self.version))
+                    "new version".format(latest_tag=latest_tag, version=self.__version__))
         except (TypeError, urllib2.URLError) as e:
             self.error("failed to check for new releases, please check your internet connection")
             self.logger.exception(e)
