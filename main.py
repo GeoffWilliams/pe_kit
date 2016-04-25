@@ -880,7 +880,7 @@ class PeKitApp(App):
     """
     logger = logging.getLogger(__name__)
     settings = Settings()
-    __version__ = "v0.1.7"
+    __version__ = "v0.1.8"
     
     def check_update(self):
         """check for new release of the app"""
