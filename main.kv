@@ -258,5 +258,9 @@ ScreenManagement:
             on_release: root.report_bug()
             
         Button:
+            text: 'Copy log to clipboard'
+            on_release: root.copy_log_clipboard()
+            
+        Button:
             text: 'Back'
             on_release: app.root.current = 'main'

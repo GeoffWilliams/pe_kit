@@ -13,10 +13,25 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import logging
-logging.basicConfig(level=logging.DEBUG)
-import ConfigParser
 
+# setup logging before proceeding further
+import logging
+import tempfile
+logging.basicConfig(level=logging.DEBUG)
+f, logfile = tempfile.mkstemp()
+
+# get root logger
+logger = logging.getLogger()
+logger.info("logging to:  " + logfile)
+fh = logging.FileHandler(logfile)
+# Example of how to turn down logging in the future
+# fh.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+fh.setFormatter(formatter)
+logger.addHandler(fh)
+
+
+import ConfigParser
 from kivy.app import App
 from kivy.clock import Clock
 from kivy.uix.boxlayout import BoxLayout
@@ -412,7 +427,17 @@ class MenuScreen(Screen):
         webbrowser.open_new("https://github.com/GeoffWilliams/pe_kit#help")
     
     def report_bug(self):
-        webbrowser.open_new('https://github.com/GeoffWilliams/pe_kit/issues/new')
+        def report_bug(x):
+            webbrowser.open_new('https://github.com/GeoffWilliams/pe_kit/issues/new')
+        App.get_running_app().info("Please also try to copy and paste the logs if reporting a bug")
+        Clock.schedule_once(report_bug, 2)
+
+
+    def copy_log_clipboard(self):
+        log = open(logfile).read()
+        Clipboard.copy(log)
+        App.get_running_app().info("Logfile copied to clipboard")
+
     
 # borg class, see http://code.activestate.com/recipes/66531-singleton-we-dont-need-no-stinkin-singleton-the-bo/
 class Controller:
@@ -1023,11 +1048,21 @@ logger = logging.getLogger(__name__)
 try:
     app = PeKitApp()
     app.run()
+    
+    # delete the logfile on succesful exit
+    os.unlink(logfile)
 except KeyboardInterrupt:
     # signal all treads to stop
     logger.error("someone pressed ctrl+c - exit")
     app.controller.running = False
+    
+    # delete the logfile on succesful exit
+    os.unlink(logfile)    
 except Exception as e:
     app.controller.running = False
-    logger.error("unkown error - exception follows...")
-    logger.exception("message")
+    logger.exception(e)
+    logger.error(
+        "Unknown error (fatal) Error messages saved to logfile {logfile}".format(
+            logfile=logfile
+        )
+    )
