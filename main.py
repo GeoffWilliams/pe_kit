@@ -179,7 +179,7 @@ class SettingsScreen(Screen):
 
     logger = logging.getLogger(__name__)
     master_image_management_layout  = ObjectProperty(None)
-    agent_image_management_layout  = ObjectProperty(None)
+    agent_image_management_layout   = ObjectProperty(None)
     use_latest_images_checkbox      = ObjectProperty(None)
     start_automatically_checkbox    = ObjectProperty(None)
     kill_orphans_checkbox           = ObjectProperty(None)
@@ -220,6 +220,7 @@ class SettingsScreen(Screen):
         self.settings.master_selected_image = App.get_running_app().get_master_selected_image()
         self.settings.agent_selected_image  = App.get_running_app().get_agent_selected_image()
 
+        self.logger.info("save settings:" + str(self.settings))
         self.settings.save()
         App.get_running_app().root.current = 'main'
 
@@ -241,7 +242,7 @@ class SettingsScreen(Screen):
         return button
     
     
-    def image_management_ui(self, layout, images, selected_image_name):
+    def image_management_ui(self, layout, images, selected_image_name, selected_image_group):
         def image_action(button):
             self.logger.info(
               "image action: {image_name}, {status}".format(
@@ -289,9 +290,8 @@ class SettingsScreen(Screen):
                     selected_button.border = (0, 0, 0, 0)
                     selected_button.width = "20dp"
                     selected_button.height = "20dp"
-                    selected_button.group = "master_selected_image"
-
-                    selected_button.image_name = selected_image_name
+                    selected_button.group = selected_image_group
+                    selected_button.image_name = image["name"]
                     if image["name"] == selected_image_name:
                         selected_button.state = "down"
                 else:
@@ -309,12 +309,14 @@ class SettingsScreen(Screen):
             self.image_management_ui(
                 self.master_image_management_layout, 
                 self.controller.master_images, 
-                self.settings.master_selected_image
+                self.settings.master_selected_image,
+                "master_selected_image"
             )
             self.image_management_ui(
                 self.agent_image_management_layout, 
                 self.controller.agent_images, 
-                self.settings.agent_selected_image
+                self.settings.agent_selected_image,
+                "agent_selected_image"
             )
             self.controller.images_refreshed = False
 
@@ -493,6 +495,10 @@ class Controller:
     AGENT_DOCKER_IMAGE_PATTERN="picoded/centos-systemd"
 
     cli = None
+    
+    # locally available images for master/agent
+    master_local_images = []
+    agent_local_images = []
     
     # combined local and remote images
     master_images = []
@@ -735,7 +741,9 @@ class Controller:
         else:
             if image_name:
                 port_bindings = self.port_bindings()
+                proceed = True
                 try:
+                    proceed = True
                     self.container = self.cli.create_container(
                       image=image_name,
                       name=self.DOCKER_CONTAINER,
@@ -749,26 +757,25 @@ class Controller:
                     )
                 except docker.errors.APIError as e:
                     if e.response.status_code == 409:
-                        self.logger.error("Container exists - starting it")
+                        self.logger.info("Container already exists - starting it")
                         self.container = self.cli.inspect_container(self.DOCKER_CONTAINER)
-                        #self.app.info("Starting existing container...")
-                        
                     else:
+                        proceed = False
                         self.logger.error("Unknown Docker error follows")
                         self.logger.exception(e)
-                        self.app.error("Unknown Docker error:  " + e.message)
-                    
-                self.logger.info("starting container " + self.container.get('Id'))
-                resp = self.cli.start(
-                  container=self.container.get('Id'),
-                  privileged=True,
-                  port_bindings=port_bindings
+                        self.app.error("Unknown Docker error:  " + str(e.explanation or e.message))
+                if proceed:
+                    self.logger.info("starting container " + self.container.get('Id'))
+                    resp = self.cli.start(
+                      container=self.container.get('Id'),
+                      privileged=True,
+                      port_bindings=port_bindings
 
-                )
-                self.logger.info(self.container)
-                self.munge_urls()
+                    )
+                    self.logger.info(self.container)
+                    self.munge_urls()
 
-                status = True
+                    status = True
             else:
                 self.app.error("No image selected, check settings")
 
@@ -805,8 +812,8 @@ class Controller:
         so that the image managment grid can be built"""
 
         # First build lists...
-        master_local_images = self.update_local_images(self.MASTER_DOCKER_IMAGE_PATTERN)
-        agent_local_images = self.update_local_images(self.AGENT_DOCKER_IMAGE_PATTERN)
+        self.master_local_images = self.update_local_images(self.MASTER_DOCKER_IMAGE_PATTERN)
+        self.agent_local_images = self.update_local_images(self.AGENT_DOCKER_IMAGE_PATTERN)
         
         master_downloadable_images = self.update_downloadable_images(self.MASTER_DOCKER_IMAGE_PATTERN)
         agent_downloadable_images = self.update_downloadable_images(self.AGENT_DOCKER_IMAGE_PATTERN)
@@ -825,13 +832,13 @@ class Controller:
             agent_newest_download_tag = None
         
         # there may be no local images yet if this is a fresh docker install
-        if len(master_local_images):
-            master_newest_local_tag = master_local_images[0]
+        if len(self.master_local_images):
+            master_newest_local_tag = self.master_local_images[0]
         else:
             master_newest_local_tag = None
 
-        if len(agent_local_images):
-            agent_newest_local_tag = agent_local_images[0]
+        if len(self.agent_local_images):
+            agent_newest_local_tag = self.agent_local_images[0]
         else:
             agent_newest_local_tag = None            
             
@@ -841,8 +848,8 @@ class Controller:
         else:
             self.update_available = False
 
-        self.master_images = self.combine_image_list(master_local_images, master_downloadable_images)
-        self.agent_images = self.combine_image_list(agent_local_images, agent_downloadable_images)
+        self.master_images = self.combine_image_list(self.master_local_images, master_downloadable_images)
+        self.agent_images = self.combine_image_list(self.agent_local_images, agent_downloadable_images)
 
         self.images_refreshed = True
         
@@ -998,23 +1005,34 @@ class PeKitApp(App):
             self.controller.stop_docker_containers()
 
     def get_master_selected_image(self):
-        return self.get_selected_image("master_selected_image")
+        return self.get_selected_image(
+            self.controller.master_local_images, "master_selected_image")
     
     def get_agent_selected_image(self):
-        return self.get_selected_image("agent_selected_image")
+        return self.get_selected_image(
+            self.controller.agent_local_images, "agent_selected_image")
     
-    def get_selected_image(self, widget_group):
-        if len(self.controller.master_local_images) == 0:
+    def get_selected_image(self, local_images, widget_group):
+        if len(local_images) == 0:
             # error loading local images or none available
+            self.logger.error("no local images available!")
             selected = None
         elif self.settings.use_latest_image:
-            selected = self.controller.master_local_images[0]
+            selected = local_images[0]
+            self.logger.debug("using latest image {selected}".format(selected=selected))
         else:
+            self.logger.debug(
+                "trying to find selection from {widget_group}".format(widget_group=widget_group))
             try:
-                current = [t for t in ToggleButton.get_widgets(widget_group) if t.state=='down'][0]
-                selected = current.image_name
-            except IndexError:
+                group = ToggleButton.get_widgets(widget_group)
+                self.logger.debug("found items in list: " + str(len(group)))
+                for member in group:
+                    self.logger.debug("state is: " + member.state)
+                    if member.state == 'down':
+                        selected = member.image_name
+            except IndexError as e:
                 selected = None
+        self.logger.debug("get_selected_image() returns {selected}".format(selected=selected))
         return selected
 
     def error(self, message):
