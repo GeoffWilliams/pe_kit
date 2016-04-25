@@ -166,8 +166,9 @@ ScreenManagement:
     name: 'settings'
 
     # widget/class variable mapping
-    image_management_layout: image_management_layout
-    use_latest_image_checkbox: use_latest_image_checkbox
+    master_image_management_layout: master_image_management_layout
+    agent_image_management_layout: agent_image_management_layout
+    use_latest_images_checkbox: use_latest_images_checkbox
     start_automatically_checkbox: start_automatically_checkbox
     kill_orphans_checkbox: kill_orphans_checkbox
     shutdown_on_exit_checkbox: shutdown_on_exit_checkbox
@@ -177,19 +178,42 @@ ScreenManagement:
         orientation: 'vertical'
         size_hint: (1, 1)
         
-        # banner
+        #
+        # master image management
+        #
         Label:
-            text: 'Image management'
+            text: 'Master Image Management'
             font_size: '40sp'
             size_hint: (1, 0.2)
 
         # Image Management     
-        GridLayout:
-            id: image_management_layout
-            cols: 3
-            cols_minimum: { 0: dp(700), 1: dp(25), 2: dp(25)}
-            row_default_height: dp(25)
+        ScrollView:
+            size: self.size
+            GridLayout:
+                id: master_image_management_layout
+                size_hint_y: None
+                cols: 3
+                cols_minimum: { 0: dp(700), 1: dp(25), 2: dp(25)}
+                row_default_height: dp(25)
 
+        #
+        # agent image management
+        #
+        Label:
+            text: 'Agent Image Management'
+            font_size: '40sp'
+            size_hint: (1, 0.2)
+
+        ScrollView:
+            size: self.size
+            # Agent Image Management     
+            GridLayout:
+                id: agent_image_management_layout
+                size_hint_y: None
+                cols: 3
+                cols_minimum: { 0: dp(700), 1: dp(25), 2: dp(25)}
+                row_default_height: dp(25)
+            
         #
         # Checkboxes/Settings file
         # 
@@ -205,10 +229,10 @@ ScreenManagement:
             
             # latest image
             CheckBox:
-                id: use_latest_image_checkbox
+                id: use_latest_images_checkbox
                 on_active: root.update_image_managment(force_refresh=True)
             Label:
-                text: 'Use latest image'
+                text: 'Use latest images'
         
             # start automatically
             CheckBox:
@@ -244,7 +268,9 @@ ScreenManagement:
     
     BoxLayout:
         orientation: 'vertical'
-        
+        padding: 20
+        spacing: 20
+
         Button:
             text: 'About'
             on_release: root.about()

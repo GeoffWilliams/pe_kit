@@ -81,7 +81,8 @@ class Settings:
     use_latest_image = True
     shutdown_on_exit = True
     expose_ports = True
-    selected_image = None
+    master_selected_image = None
+    agent_selected_image = None
 
     def __init__(self):
         self.__dict__ = self.__shared_state
@@ -93,7 +94,8 @@ class Settings:
         self.config.set("main", "use_latest_image", self.use_latest_image)
         self.config.set("main", "shutdown_on_exit", self.shutdown_on_exit)
         self.config.set("main", "expose_ports", self.expose_ports)
-        self.config.set("main", "selected_image", self.selected_image)
+        self.config.set("main", "master_selected_image", self.master_selected_image)
+        self.config.set("main", "agent_selected_image", self.agent_selected_image)
 
         self.config.write(open(self.CONFIG_FILE, 'w'))
 
@@ -106,7 +108,9 @@ class Settings:
         self.use_latest_image = self.config.getboolean("main","use_latest_image")
         self.shutdown_on_exit = self.config.getboolean("main", "shutdown_on_exit")
         self.expose_ports = self.config.getboolean("main", "expose_ports")
-        self.selected_image = self.config.get("main", "selected_image")
+        self.master_selected_image = self.config.get("main", "master_selected_image")
+        self.agent_selected_image = self.config.get("main", "agent_selected_image")
+
 
 class DockerMachine():
     """
@@ -174,15 +178,16 @@ class SettingsScreen(Screen):
     """
 
     logger = logging.getLogger(__name__)
-    image_management_layout       = ObjectProperty(None)
-    use_latest_image_checkbox     = ObjectProperty(None)
-    start_automatically_checkbox  = ObjectProperty(None)
-    kill_orphans_checkbox         = ObjectProperty(None)
-    download_images_layout        = ObjectProperty(None)
-    selected_image_button         = ObjectProperty(None)
-    shutdown_on_exit_checkbox     = ObjectProperty(None)
-    expose_ports_checkbox         = ObjectProperty(None)
-    settings                      = Settings()
+    master_image_management_layout  = ObjectProperty(None)
+    agent_image_management_layout  = ObjectProperty(None)
+    use_latest_images_checkbox      = ObjectProperty(None)
+    start_automatically_checkbox    = ObjectProperty(None)
+    kill_orphans_checkbox           = ObjectProperty(None)
+    download_images_layout          = ObjectProperty(None)
+    master_selected_image_button    = ObjectProperty(None)
+    shutdown_on_exit_checkbox       = ObjectProperty(None)
+    expose_ports_checkbox           = ObjectProperty(None)
+    settings                        = Settings()
 
 
     def __init__(self, **kwargs):
@@ -190,7 +195,7 @@ class SettingsScreen(Screen):
         self.controller = Controller()
 
     def on_start(self):
-        self.use_latest_image_checkbox.active     = self.settings.use_latest_image
+        self.use_latest_images_checkbox.active    = self.settings.use_latest_image
         self.start_automatically_checkbox.active  = self.settings.start_automatically
         self.kill_orphans_checkbox.active         = self.settings.kill_orphans
         self.shutdown_on_exit_checkbox.active     = self.settings.shutdown_on_exit
@@ -198,15 +203,22 @@ class SettingsScreen(Screen):
 
         # periodically refresh the image managment grid if we need to
         Clock.schedule_interval(self.update_image_managment, 0.5)
+        
+        # scrollable image list for images (agent and master)
+        self.master_image_management_layout.bind(
+            minimum_height= self.master_image_management_layout.setter('height'))
+        self.agent_image_management_layout.bind(
+            minimum_height=self.agent_image_management_layout.setter('height'))
 
     def back(self):
         """save settings and go back"""
-        self.settings.use_latest_image    = self.use_latest_image_checkbox.active
-        self.settings.start_automatically = self.start_automatically_checkbox.active
-        self.settings.kill_orphans        = self.kill_orphans_checkbox.active
-        self.settings.shutdown_on_exit    = self.shutdown_on_exit_checkbox.active
-        self.settings.expose_ports        = self.expose_ports_checkbox.active
-        self.settings.selected_image      = App.get_running_app().get_selected_image()
+        self.settings.use_latest_image      = self.use_latest_images_checkbox.active
+        self.settings.start_automatically   = self.start_automatically_checkbox.active
+        self.settings.kill_orphans          = self.kill_orphans_checkbox.active
+        self.settings.shutdown_on_exit      = self.shutdown_on_exit_checkbox.active
+        self.settings.expose_ports          = self.expose_ports_checkbox.active
+        self.settings.master_selected_image = App.get_running_app().get_master_selected_image()
+        self.settings.agent_selected_image  = App.get_running_app().get_agent_selected_image()
 
         self.settings.save()
         App.get_running_app().root.current = 'main'
@@ -227,62 +239,82 @@ class SettingsScreen(Screen):
         button.height = "20dp"
 
         return button
-
-    def update_image_managment(self, x=None, force_refresh=False, ):
+    
+    
+    def image_management_ui(self, layout, images, selected_image_name):
         def image_action(button):
             self.logger.info(
               "image action: {tag}, {status}".format(tag=button.tag, status=button.status))
             if button.status == "downloadable":
                 # start download in own thread
                 button.background_normal = "icons/download.png"
-                threading.Thread(target=self.controller.download_image, args=[button.tag]).start()
-            elif button.tag in self.controller.active_downloads:
+                # FIXME - pass image name too
+                threading.Thread(target=self.controller.download_image, args=[button.image_name]).start()
+            elif button.tag in self.controller.master_active_downloads:
                 # currently downloading
                 App.get_running_app().question(
-                    "Image {tag} is downloading, cancel?".format(tag=button.tag),
-                    yes_callback=partial(self.controller.stop_download, button.tag)
+                    "Image {image_name} is downloading, cancel?".format(
+                        image_name=button.image_name
+                    ),
+                    yes_callback=partial(self.controller.stop_download, button.image_name)
                 )
             elif button.status == "local":
                 # delete
                 App.get_running_app().question(
-                    "really delete image {tag}?".format(tag=button.tag), 
-                    yes_callback=partial(self.controller.delete_image, button.tag)
+                    "really delete image {image_name}?".format(
+                        image_name=button.image_name,
+                    ), 
+                    yes_callback=partial(self.controller.delete_image, button.image_name)
                 )
+                
+                
+        layout.clear_widgets()
+        for image in images:
+            name_label = Label(text=image["name"])
+            name_label.bind(size=name_label.setter('text_size'))
+            name_label.halign = "left"
+            status_button = self.get_image_button(image["status"])
+            status_button.image_name = image["name"]
+            status_button.status = image["status"]
+            status_button.bind(on_release=image_action)
+            if self.use_latest_images_checkbox.active:
+                # add a blank label as a spacer to avoid breaking the display
+                selected_button = Label()
+            else:
+                if image["status"] == "local":
+                    selected_button = ToggleButton()
+                    selected_button.background_normal="icons/deselected_image.png"
+                    selected_button.background_down="icons/selected_image.png"
+                    selected_button.border = (0, 0, 0, 0)
+                    selected_button.width = "20dp"
+                    selected_button.height = "20dp"
+                    selected_button.group = "master_selected_image"
+
+                    selected_button.image_name = selected_image_name
+                    if image["name"] == selected_image_name:
+                        selected_button.state = "down"
+                else:
+                    # use a blank label as a spacer
+                    selected_button = Label()
+
+            layout.add_widget(name_label)
+            layout.add_widget(status_button)
+            layout.add_widget(selected_button)        
+
+    def update_image_managment(self, x=None, force_refresh=False, ):
+
             
         if self.controller.images_refreshed or force_refresh:
-            self.image_management_layout.clear_widgets()
-            for image in self.controller.images:
-                name_label = Label(text=image["name"])
-                name_label.bind(size=name_label.setter('text_size'))
-                name_label.halign = "left"
-                status_button = self.get_image_button(image["status"])
-                status_button.tag = image["name"]
-                status_button.status = image["status"]
-                status_button.bind(on_release=image_action)
-                if self.use_latest_image_checkbox.active:
-                    # add a blank label as a spacer to avoid breaking the display
-                    selected_button = Label()
-                else:
-                    if image["status"] == "local":
-                        selected_button = ToggleButton()
-                        selected_button.background_normal="icons/deselected_image.png"
-                        selected_button.background_down="icons/selected_image.png"
-                        selected_button.border = (0, 0, 0, 0)
-                        selected_button.width = "20dp"
-                        selected_button.height = "20dp"
-                        selected_button.group = "selected_image"
-                        
-                        selected_image = image["name"]
-                        selected_button.image_name = selected_image
-                        if selected_image == self.settings.selected_image:
-                            selected_button.state = "down"
-                    else:
-                        # use a blank label as a spacer
-                        selected_button = Label()
-
-                self.image_management_layout.add_widget(name_label)
-                self.image_management_layout.add_widget(status_button)
-                self.image_management_layout.add_widget(selected_button)
+            self.image_management_ui(
+                self.master_image_management_layout, 
+                self.controller.master_images, 
+                self.settings.master_selected_image
+            )
+            self.image_management_ui(
+                self.agent_image_management_layout, 
+                self.controller.agent_images, 
+                self.settings.agent_selected_image
+            )
             self.controller.images_refreshed = False
 
 class MainScreen(Screen):
@@ -415,7 +447,11 @@ class MainScreen(Screen):
         Clock.schedule_once(open_terminal, 2)
 
 class MenuScreen(Screen):        
-    """Simple menu of helpful links"""
+    """
+    MenuScreen
+    
+    Simple menu of helpful links
+    """
     
     def __init__(self, **kwargs):
         super(MenuScreen, self).__init__(**kwargs)
@@ -443,6 +479,7 @@ class MenuScreen(Screen):
 class Controller:
     """
     Controller
+    
     Separate off the control functions to remove dependency on kivy
     """
     __shared_state = {}
@@ -451,17 +488,14 @@ class Controller:
 
     DOCKER_CONTAINER="pe_kit__"
     PE_HOSTNAME="pe-puppet.localdomain"
-    DOCKER_IMAGE_PATTERN="geoffwilliams/pe_master_public_lowmem_r10k_dockerbuild"
+    MASTER_DOCKER_IMAGE_PATTERN="geoffwilliams/pe_master_public_lowmem_r10k_dockerbuild"
+    AGENT_DOCKER_IMAGE_PATTERN="picoded/centos-systemd"
+
     cli = None
-
-    # images avaiable for downloading
-    downloadable_images = []
-
-    # images available locally
-    local_images = []
     
     # combined local and remote images
-    images = []
+    master_images = []
+    agent_images = []
     
     docker_url = None
     docker_address = "unknown"
@@ -475,7 +509,9 @@ class Controller:
     daemon_status = "stopped"
     update_available = False
     dm = None
-    active_downloads = []
+    master_active_downloads = []
+    agent_active_downloads = []
+
 
     # app/program is running - threads use this to see if they should
     # continue executing
@@ -497,13 +533,13 @@ class Controller:
         self.refresh_images()
 
     def download_image(self, tag):
-        self.active_downloads.append(tag)
+        self.master_active_downloads.append(tag)
         for line in self.cli.pull(
           repository = self.DOCKER_IMAGE_PATTERN,
           tag = tag,
           stream = True,
         ):
-            if self.running and tag in self.active_downloads:
+            if self.running and tag in self.master_active_downloads:
                 self.logger.debug(line)
             else:
                 raise Exception("Aborting download because quit/cancel!")
@@ -512,8 +548,8 @@ class Controller:
         
     def stop_download(self, tag):
         """abort a download by removing it from the list of active downloads"""
-        if tag in self.active_downloads:
-            self.active_downloads.remove(tag)
+        if tag in self.master_active_downloads:
+            self.master_active_downloads.remove(tag)
         self.refresh_images()
 
     def update_status(self):
@@ -685,7 +721,7 @@ class Controller:
 
     def start_pe(self):
         status = False
-        tag = self.app.get_selected_image()
+        tag = self.app.get_master_selected_image()
 
         if self.container_alive():
             status = True
@@ -763,102 +799,123 @@ class Controller:
         so that the image managment grid can be built"""
 
         # First build lists...
-        self.update_local_images()
-        self.update_downloadable_images()
+        master_local_images = self.update_local_images(self.MASTER_DOCKER_IMAGE_PATTERN)
+        agent_local_images = self.update_local_images(self.AGENT_DOCKER_IMAGE_PATTERN)
+        
+        master_downloadable_images = self.update_downloadable_images(self.MASTER_DOCKER_IMAGE_PATTERN)
+        agent_downloadable_images = self.update_downloadable_images(self.AGENT_DOCKER_IMAGE_PATTERN)
 
         # since PE releases are somewhat ISO 8601 format (not really) we
-        # can sort alphabetically to see if we are up to date
-        newest_download_tag = self.downloadable_images[0]
-
-        # there may be no local images yet if this is a fresh docker install
-        if len(self.local_images):
-            newest_local_tag = self.local_images[0]
+        # can sort alphabetically to see if we are up to date.  Protect
+        # against empty list of upstream images
+        if len(master_downloadable_images):
+            master_newest_download_tag = master_downloadable_images[0]
         else:
-            newest_local_tag = None
+            master_newest_download_tag = None
+        
+        if len(agent_downloadable_images):
+            agent_newest_download_tag = agent_downloadable_images[0]
+        else:
+            agent_newest_download_tag = None
+        
+        # there may be no local images yet if this is a fresh docker install
+        if len(master_local_images):
+            master_newest_local_tag = master_local_images[0]
+        else:
+            master_newest_local_tag = None
 
+        if len(agent_local_images):
+            agent_newest_local_tag = agent_local_images[0]
+        else:
+            agent_newest_local_tag = None            
+            
         # set flag here and pick it up in the render code
-        if newest_download_tag > newest_local_tag:
+        if master_newest_download_tag > master_newest_local_tag or agent_newest_download_tag > agent_newest_local_tag:
             self.update_available = True
         else:
             self.update_available = False
 
+        self.master_images = self.combine_image_list(master_local_images, master_downloadable_images)
+        self.agent_images = self.combine_image_list(agent_local_images, agent_downloadable_images)
 
-        # now combine into a hash
-        self.images = []
-        for tag in self.downloadable_images:
-            self.images.append({
+        self.images_refreshed = True
+        
+    def combine_image_list(self, local_images, downloadable_images):
+        # now combine into an array of hashes
+        images = []
+        for tag in downloadable_images:
+            images.append({
               "name": tag,
               "status": "downloadable",
               "selected": False
             })
 
-        for tag in self.local_images:
-            self.images.append({
+        for tag in local_images:
+            images.append({
               "name": tag,
               "status": "local",
               "selected": False
             })
+        return images
+        
 
-        self.images_refreshed = True
-
-
-    def update_local_images(self):
+    def update_local_images(self, pattern):
         """
         re-create the list of locally downloaded images that are ready to
         run.  Updates the self.local_images array to be a list of tags
         present locally
         """
+        local_images = []
         if self.cli is not None:
             docker_images = self.cli.images()
 
-            self.local_images = []
-
             for docker_image in docker_images:
                 image_name = docker_image["RepoTags"][0]
-
-                # split off the image name and just get the tag
-                tag = image_name.split(":")[-1]
-
-                #self.log("found image " + image_name)
-                if image_name.startswith(self.DOCKER_IMAGE_PATTERN):
-                    self.local_images.append(tag)
-            self.local_images.sort(reverse=True)
+                if image_name.startswith(pattern):
+                    local_images.append(image_name)
+            local_images.sort(reverse=True)
+        return local_images
 
     # images available for download
-    def update_downloadable_images(self):
+    def update_downloadable_images(self, pattern):
         """
         re-create the list of image tags available for download.  Updates
-        self.downloadable_images to be a list of the available tags (strings)
+        self.master_downloadable_images to be a list of the available tags (strings)
         """
-        self.downloadable_images = []
+        downloadable_images = []
         try:
             images = json.load(
               urllib2.urlopen(
                 "https://registry.hub.docker.com/v2/repositories/%s/tags/" %
-                self.DOCKER_IMAGE_PATTERN
+                pattern
               )
             )
             for tags in images["results"]:
                 # if image is already downloaded, don't list it as available for download
-                tag = tags["name"]
-                if not self.tag_exists_locally(tag):
-                    self.downloadable_images.append(tag)
+                image_name = pattern + ":" + tags["name"]
+                if not self.tag_exists_locally(image_name):
+                    downloadable_images.append(image_name)
         except urllib2.URLError:
             self.logger.error("failed to reach docker hub - no internet?")
-        self.downloadable_images.sort(reverse=True)
+        downloadable_images.sort(reverse=True)
+        return downloadable_images
 
     # test if a tag has already been downloaded
-    def tag_exists_locally(self, tag):
-        """determine if a given tag exists locallay"""
+    def tag_exists_locally(self, image_name):
+        """determine if a pattern and tag exists locallay"""        
         found = False
         i = 0
-        while not found and i < len(self.local_images):
-            image = self.local_images[i]
-            image_split = image.split(":")
-            local_tag = image_split[len(image_split) - 1]
-            if tag == local_tag:
+        local_images = self.cli.images()
+        while not found and i < len(local_images):
+            local_image = local_images[i]["RepoTags"][0]
+            self.logger.debug(local_image + "==" + image_name)
+            if local_image == image_name:
                 found = True
             i += 1
+
+        self.logger.debug("image {image_name} local={found}".format(
+                image_name=image_name,found=found)
+        )
 
         return found
 
@@ -934,15 +991,21 @@ class PeKitApp(App):
         if self.settings.shutdown_on_exit:
             self.controller.stop_docker_containers()
 
-    def get_selected_image(self):
-        if len(self.controller.local_images) == 0:
+    def get_master_selected_image(self):
+        return self.get_selected_image("master_selected_image")
+    
+    def get_agent_selected_image(self):
+        return self.get_selected_image("agent_selected_image")
+    
+    def get_selected_image(self, widget_group):
+        if len(self.controller.master_local_images) == 0:
             # error loading local images or none available
             selected = None
         elif self.settings.use_latest_image:
-            selected = self.controller.local_images[0]
+            selected = self.controller.master_local_images[0]
         else:
             try:
-                current = [t for t in ToggleButton.get_widgets('selected_image') if t.state=='down'][0]
+                current = [t for t in ToggleButton.get_widgets(widget_group) if t.state=='down'][0]
                 selected = current.image_name
             except IndexError:
                 selected = None
@@ -982,7 +1045,7 @@ class PeKitApp(App):
 
     def question(self, message, yes_callback=None, no_callback=None):
         """Ask a yes/no question with an optional callback attached to each choice"""
-        x = self.popup(
+        self.popup(
             title="Question", 
             message=message, 
             question=True, 
