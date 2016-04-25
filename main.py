@@ -244,13 +244,14 @@ class SettingsScreen(Screen):
     def image_management_ui(self, layout, images, selected_image_name):
         def image_action(button):
             self.logger.info(
-              "image action: {tag}, {status}".format(tag=button.tag, status=button.status))
+              "image action: {image_name}, {status}".format(
+                    image_name=button.image_name, status=button.status))
             if button.status == "downloadable":
                 # start download in own thread
                 button.background_normal = "icons/download.png"
-                # FIXME - pass image name too
+                button.status = "downloading"
                 threading.Thread(target=self.controller.download_image, args=[button.image_name]).start()
-            elif button.tag in self.controller.master_active_downloads:
+            elif button.image_name in self.controller.active_downloads:
                 # currently downloading
                 App.get_running_app().question(
                     "Image {image_name} is downloading, cancel?".format(
@@ -509,9 +510,7 @@ class Controller:
     daemon_status = "stopped"
     update_available = False
     dm = None
-    master_active_downloads = []
-    agent_active_downloads = []
-
+    active_downloads = []
 
     # app/program is running - threads use this to see if they should
     # continue executing
@@ -526,30 +525,38 @@ class Controller:
     def __init__(self):
         self.__dict__ = self.__shared_state
 
-    def delete_image(self, tag):
-        self.cli.remove_image(
-          self.DOCKER_IMAGE_PATTERN + ":" + tag
-        )
+    def delete_image(self, image_name):
+        self.cli.remove_image(image_name)
         self.refresh_images()
 
-    def download_image(self, tag):
-        self.master_active_downloads.append(tag)
-        for line in self.cli.pull(
-          repository = self.DOCKER_IMAGE_PATTERN,
-          tag = tag,
-          stream = True,
-        ):
-            if self.running and tag in self.master_active_downloads:
-                self.logger.debug(line)
-            else:
-                raise Exception("Aborting download because quit/cancel!")
-        self.stop_download()
-        self.refresh_images()
+    def download_image(self, image_name):
+        if image_name in self.active_downloads:
+            self.logger.info(
+                "Already downloading {image_name}, refusing duplicate download".format(
+                    image_name=image_name
+            ))
+        else:
+            self.logger.info("starting download of:  " + image_name)
+            self.active_downloads.append(image_name)
+            image_name_split = image_name.split(":")
+            for line in self.cli.pull(
+              repository = image_name_split[0],
+              tag = image_name_split[1],
+              stream = True,
+            ):
+                if self.running and image_name in self.active_downloads:
+                    self.logger.debug(line)
+                else:
+                    raise Exception("Aborting download because quit/cancel!")
+            
+            # mark as completed
+            self.stop_download(image_name)
+            self.refresh_images()
         
-    def stop_download(self, tag):
+    def stop_download(self, image_name):
         """abort a download by removing it from the list of active downloads"""
-        if tag in self.master_active_downloads:
-            self.master_active_downloads.remove(tag)
+        if image_name in self.active_downloads:
+            self.active_downloads.remove(image_name)
         self.refresh_images()
 
     def update_status(self):
@@ -721,17 +728,16 @@ class Controller:
 
     def start_pe(self):
         status = False
-        tag = self.app.get_master_selected_image()
+        image_name = self.app.get_master_selected_image()
 
         if self.container_alive():
             status = True
         else:
-            if tag:
-                selected_image = self.DOCKER_IMAGE_PATTERN + ":" + tag
+            if image_name:
                 port_bindings = self.port_bindings()
                 try:
                     self.container = self.cli.create_container(
-                      image=selected_image,
+                      image=image_name,
                       name=self.DOCKER_CONTAINER,
                       hostname=self.PE_HOSTNAME,
                       detach=True,
@@ -843,16 +849,16 @@ class Controller:
     def combine_image_list(self, local_images, downloadable_images):
         # now combine into an array of hashes
         images = []
-        for tag in downloadable_images:
+        for image_name in downloadable_images:
             images.append({
-              "name": tag,
+              "name": image_name,
               "status": "downloadable",
               "selected": False
             })
 
-        for tag in local_images:
+        for image_name in local_images:
             images.append({
-              "name": tag,
+              "name": image_name,
               "status": "local",
               "selected": False
             })
