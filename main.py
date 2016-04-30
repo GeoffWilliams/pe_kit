@@ -494,7 +494,7 @@ class MainScreen(Screen):
             error = True
             if exit_status == 0:
                 error = False
-                message="Agent provisioned OK"
+                message="Agent provisioned OK.  Don't forget to accept the certificate!"
             elif exit_status == 7 or exit_status == 35:
                 message="Agent provisioning FAILED, Puppet Master down/starting?"
             elif exit_status == 1:

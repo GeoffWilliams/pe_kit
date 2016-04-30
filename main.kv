@@ -106,27 +106,27 @@ ScreenManagement:
                 on_release: root.toggle_advanced()
                 size_hint: (0.4, 0.5)
 
+            BoxLayout:
+                id: advanced_layout_holder
+
                 BoxLayout:
-                    id: advanced_layout_holder
+                    id: advanced_layout
 
-                    BoxLayout:
-                        id: advanced_layout
+                    # run puppet
+                    Button:
+                        id: master_run_puppet_button
+                        text:  self.free_text
+                        free_text: 'Run Puppet on Master'
+                        busy_text: 'Running Puppet on Master...'
+                        on_release: root.run_puppet(self, 'master')
+                        busy: False
 
-                        # run puppet
-                        Button:
-                            id: master_run_puppet_button
-                            text:  self.free_text
-                            free_text: 'Run Puppet on Master'
-                            busy_text: 'Running Puppet on Master...'
-                            on_release: root.run_puppet(self, 'master')
-                            busy: False
+                    # dockerbuild
+                    Button:
+                        id: dockerbuild_button
+                        text: 'Dockerbuild'
+                        on_release: root.dockerbuild()
 
-                        # dockerbuild
-                        Button:
-                            id: dockerbuild_button
-                            text: 'Dockerbuild'
-                            on_release: root.dockerbuild()
-        
         BoxLayout:
             Button:
                 id: agent_provision_button
