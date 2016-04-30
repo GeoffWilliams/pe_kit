@@ -34,18 +34,26 @@ ScreenManagement:
     # see https://kivy.org/docs/guide/lang.html
     advanced_layout: advanced_layout.__self__
     advanced_layout_holder: advanced_layout_holder
-    app_status_label: app_status_label
-    container_status_label:container_status_label
-    container_delete_button: container_delete_button
+    #app_status_label: app_status_label
+    master_status_label: master_status_label
+    agent_status_label: agent_status_label
+
+    agent_container_delete_button: agent_container_delete_button
+    master_container_delete_button: master_container_delete_button
+
     docker_status_button: docker_status_button
     action_layout_holder: action_layout_holder
     action_layout: action_layout.__self__
     pe_status_button: pe_status_button
     console_button: console_button
     terminal_button: terminal_button
-    run_puppet_button: run_puppet_button
+    master_run_puppet_button: master_run_puppet_button
     dockerbuild_button: dockerbuild_button
+
     
+    agent_provision_button: agent_provision_button
+    agent_run_puppet_button: agent_run_puppet_button
+
     BoxLayout:
         orientation: 'vertical'
         padding: 20
@@ -82,7 +90,7 @@ ScreenManagement:
                 BoxLayout:
                     Button:
                         id: console_button
-                        text: 'Console'
+                        text: 'Puppet Enterprise Console'
                         on_press: root.pe_console()
                         disabled: True
 
@@ -108,42 +116,80 @@ ScreenManagement:
 
                         # run puppet
                         Button:
-                            id: run_puppet_button
-                            text:  'Run Puppet'
-                            on_release: root.run_puppet()
+                            id: master_run_puppet_button
+                            text:  self.free_text
+                            free_text: 'Run Puppet on Master'
+                            busy_text: 'Running Puppet on Master...'
+                            on_release: root.run_puppet(self, 'master')
+                            busy: False
 
                         # dockerbuild
                         Button:
                             id: dockerbuild_button
                             text: 'Dockerbuild'
                             on_release: root.dockerbuild()
+        
+        BoxLayout:
+            Button:
+                id: agent_provision_button
+                text: self.free_text
+                on_release: root.agent_provision()
+                free_text: 'Provision'
+                busy_text: 'Provisioning...'
+                
+            Button:
+                id: agent_run_puppet_button
+                text: self.free_text
+                free_text: 'Run Puppet on Agent'
+                busy_text: 'Running Puppet on Agent...'
+                on_release: root.run_puppet(self, 'agent')
+                
+            Button:
+                text: 'Terminal'
+                on_release: root.agent_terminal()
+                
+            Button:
+                text: 'Agent Demo'
+                on_release: root.agent_demo()
 
         #
         # Status
         #
         GridLayout:
-            cols: 6
+            cols: 7
             size_hint: (1, 0.2)
-            
+
             Label:
                 text: 'Status:'
                 size_hint: (0.2, 1)
             Label:
-                id: app_status_label
-                text: '...'
+                id: agent_status_label
+                text: ''
                 size_hint: (0.2, 1)
-            Label:
-                id: container_status_label
-                text: '...'
-                size_hint: (0.4, 1)
-            # start/stop container
+
+            # agent status
             Button:
-                id: container_delete_button
-                on_release: app.controller.toggle_docker_container()
+                id: agent_container_delete_button
+                on_release: app.controller.toggle_docker_container("agent")
+                size_hint_y: None
+                size_hint_x: None
+                border: (0, 0, 0, 0)
+                background_normal: 'icons/blank.png'   
+                text: 'A'
+            Label:
+                id: master_status_label
+                text: ''
+                size_hint: (0.4, 1)
+
+            # master status
+            Button:
+                id: master_container_delete_button
+                on_release: app.controller.toggle_docker_container("master")
                 size_hint_y: None
                 size_hint_x: None
                 border: (0, 0, 0, 0)
                 background_normal: 'icons/blank.png'
+                text: 'M'
 
             Button:
                 id: pe_status_button
