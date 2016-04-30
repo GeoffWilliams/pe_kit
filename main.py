@@ -58,7 +58,6 @@ import time
 import subprocess
 import os
 import docker.errors
-#import requests.packages.urllib3 as urllib3
 import requests.exceptions
 from kivy.lang import Builder
 from kivy.uix.settings import (SettingsWithSidebar,
@@ -331,23 +330,24 @@ class MainScreen(Screen):
     """
 
     logger = logging.getLogger(__name__)
-    advanced_layout         = ObjectProperty(None)
-    advanced_layout_holder  = ObjectProperty(None)
-    agent_status_label        = ObjectProperty(None)
-    master_status_label  = ObjectProperty(None)
-    master_container_delete_button = ObjectProperty(None)
-    docker_status_button    = ObjectProperty(None)
-    action_layout_holder    = ObjectProperty(None)
-    action_layout           = ObjectProperty(None)
-    pe_status_button        = ObjectProperty(None)
-    console_button          = ObjectProperty(None)
-    terminal_button         = ObjectProperty(None)
-    master_run_puppet_button       = ObjectProperty(None)
-    dockerbuild_button      = ObjectProperty(None)
+    settings = Settings()
+    advanced_layout                 = ObjectProperty(None)
+    advanced_layout_holder          = ObjectProperty(None)
+    agent_status_label              = ObjectProperty(None)
+    master_status_label             = ObjectProperty(None)
+    master_container_delete_button  = ObjectProperty(None)
+    docker_status_button            = ObjectProperty(None)
+    pe_status_button                = ObjectProperty(None)
+    console_button                  = ObjectProperty(None)
+    terminal_button                 = ObjectProperty(None)
+    master_run_puppet_button        = ObjectProperty(None)
+    dockerbuild_button              = ObjectProperty(None)
     
-    agent_provision_button = ObjectProperty(None)
-    agent_run_puppet_button = ObjectProperty(None)
-    settings                = Settings()
+    # Agent actions
+    agent_provision_button          = ObjectProperty(None)
+    agent_run_puppet_button         = ObjectProperty(None)
+    agent_terminal_button           = ObjectProperty(None)
+    agent_demo_button               = ObjectProperty(None)
 
     def __init__(self, **kwargs):
         super(MainScreen, self).__init__(**kwargs)
@@ -358,7 +358,7 @@ class MainScreen(Screen):
         if uptime:
             pe_status = self.controller.pe_status()
 
-            message = "Docker container is alive, up {uptime} seconds.  PE is {pe_status}.  ".format(
+            message = "PE Docker container is alive, up {uptime} seconds.  PE is {pe_status}.  ".format(
               uptime = uptime,
               pe_status = pe_status
             )
@@ -376,27 +376,16 @@ class MainScreen(Screen):
 
             pe_status = self.controller.pe_status()
         else:
-            message = "Docker container is not running"
+            message = "PE Docker container is not running"
         App.get_running_app().info(message)
 
-    def docker_status_info(self, container):
+    def docker_status_info(self):
         App.get_running_app().info(
             "Docker daemon is {alive}".format(
-                alive=self.controller.daemon_alive(container)
+                alive=self.controller.daemon_alive()
             )
         )
 
-    def toggle_action_layout(self, show):
-        if show:
-            # hidden -> show
-            self.action_layout_holder.add_widget(self.action_layout)
-
-            if self.controller.update_available:
-                App.get_running_app().info("An new image is available, check settings to download")
-
-        else:
-            # showing -> hide
-            self.action_layout_holder.clear_widgets()
 
     def toggle_advanced(self):
         self.logger.debug("clicked toggle_advanced()")
@@ -801,10 +790,6 @@ class Controller:
                 if self.settings.start_automatically:
                     self.start_pe()
 
-                # potiential segfault here? - should probably do something similar to above
-                # ready for action, enable buttons
-                self.app.toggle_action_layout(True)
-
         else:
             # no docker machine
             self.app.error("Unable to start docker :*(")
@@ -1166,9 +1151,6 @@ class PeKitApp(App):
         # hide advanced by default
         self.root.get_screen("main").toggle_advanced()
 
-        # hide action buttons until we have loaded the system
-        self.root.get_screen("main").toggle_action_layout(False)
-
         # setup the settings screen
         self.root.get_screen("settings").on_start()
 
@@ -1266,9 +1248,6 @@ class PeKitApp(App):
     
     def info(self, message):
         return self.popup(title='Information', message=message)
-
-    def toggle_action_layout(self, show):
-        self.root.get_screen("main").toggle_action_layout(show)
         
     def container_monitor(self, container, button, label):
         uptime = container["status"]
@@ -1286,6 +1265,7 @@ class PeKitApp(App):
     def daemon_monitor(self, x):
         screen = self.root.get_screen("main")
         pe_status = "stopped"
+        agent_uptime = False
 
         if self.controller.daemon_status == "running":
             self.logger.debug("docker daemon ok :)")            
@@ -1305,6 +1285,7 @@ class PeKitApp(App):
             
             if master_uptime:
                 pe_status = self.controller.pe_status()
+    
         elif self.controller.daemon_status == "loading":
             self.logger.error("docker daemon starting!")
             daemon_icon = "icons/wait.png"                   
@@ -1312,32 +1293,24 @@ class PeKitApp(App):
             self.logger.error("docker daemon dead!")
             daemon_icon = "icons/error.png"
 
+        actions_disabled = {
+            screen.console_button: False if pe_status == "running" else True,
+            screen.terminal_button: False if pe_status == "running" or pe_status == "loading" else True,
+            screen.master_run_puppet_button: False if pe_status == "running" else True,
+            screen.dockerbuild_button: False if pe_status == "running" or pe_status == "loading" else True,
+            
+            screen.agent_provision_button: False if pe_status == "running" and agent_uptime else True,
+            screen.agent_run_puppet_button: False if pe_status == "running" and agent_uptime else True,
+            screen.agent_terminal_button: False if agent_uptime else True,
+            screen.agent_demo_button: False if agent_uptime else True,
+        }    
         if pe_status == "running":
             pe_status_icon = "icons/puppet.png"
-            actions_disabled = {
-                screen.console_button: False,
-                screen.terminal_button: False,
-                screen.master_run_puppet_button: False,
-                screen.dockerbuild_button: False,
-            }
         elif pe_status == "loading":
             pe_status_icon = "icons/wait.png"
-            actions_disabled = {
-                screen.console_button: True,
-                screen.terminal_button: False,
-                screen.master_run_puppet_button: False,
-                screen.dockerbuild_button: False,
-            }
         else:
-            pe_status_icon = "" #icons/disabled.png"
-            actions_disabled = {
-                screen.console_button: True,
-                screen.terminal_button: True,
-                screen.master_run_puppet_button: True,
-                screen.dockerbuild_button: True,
-            }
+            pe_status_icon = "icons/disabled.png"
 
-        
         # buttons
         for key in actions_disabled:
             if not hasattr(key, 'busy') or not key.busy:

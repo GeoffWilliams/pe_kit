@@ -42,8 +42,6 @@ ScreenManagement:
     master_container_delete_button: master_container_delete_button
 
     docker_status_button: docker_status_button
-    action_layout_holder: action_layout_holder
-    action_layout: action_layout.__self__
     pe_status_button: pe_status_button
     console_button: console_button
     terminal_button: terminal_button
@@ -53,6 +51,8 @@ ScreenManagement:
     
     agent_provision_button: agent_provision_button
     agent_run_puppet_button: agent_run_puppet_button
+    agent_terminal_button: agent_terminal_button
+    agent_demo_button: agent_demo_button
 
     BoxLayout:
         orientation: 'vertical'
@@ -82,31 +82,29 @@ ScreenManagement:
                 on_release: app.root.current = 'menu'
                 background_normal: 'icons/menu.png'                    
         BoxLayout:
-            id: action_layout_holder
+            id: action_layout
+            orientation: 'vertical'
+            # console
             BoxLayout:
-                id: action_layout
-                orientation: 'vertical'
-                # console
-                BoxLayout:
-                    Button:
-                        id: console_button
-                        text: 'Puppet Enterprise Console'
-                        on_press: root.pe_console()
-                        disabled: True
-
-                    # terminal
-                    Button:
-                        id: terminal_button
-                        text: 'Terminal'
-                        on_press: root.pe_terminal()
-
-                #
-                # Advanced
-                #
                 Button:
-                    text: 'Toggle advanced actions'
-                    on_release: root.toggle_advanced()
-                    size_hint: (0.4, 0.5)
+                    id: console_button
+                    text: 'Puppet Enterprise Console'
+                    on_press: root.pe_console()
+                    disabled: True
+
+                # terminal
+                Button:
+                    id: terminal_button
+                    text: 'Master Terminal'
+                    on_press: root.pe_terminal()
+
+            #
+            # Advanced
+            #
+            Button:
+                text: 'Toggle advanced actions'
+                on_release: root.toggle_advanced()
+                size_hint: (0.4, 0.5)
 
                 BoxLayout:
                     id: advanced_layout_holder
@@ -136,6 +134,7 @@ ScreenManagement:
                 on_release: root.agent_provision()
                 free_text: 'Provision'
                 busy_text: 'Provisioning...'
+                disabled: True
                 
             Button:
                 id: agent_run_puppet_button
@@ -143,31 +142,34 @@ ScreenManagement:
                 free_text: 'Run Puppet on Agent'
                 busy_text: 'Running Puppet on Agent...'
                 on_release: root.run_puppet(self, 'agent')
-                
+                disabled: True
             Button:
-                text: 'Terminal'
+                id: agent_terminal_button
+                text: 'Agent Terminal'
                 on_release: root.agent_terminal()
-                
+                disabled: True
             Button:
+                id: agent_demo_button
                 text: 'Agent Demo'
                 on_release: root.agent_demo()
+                disabled: True
+
 
         #
         # Status
         #
         GridLayout:
-            cols: 7
+            cols: 8
             size_hint: (1, 0.2)
 
+            # agent status
             Label:
-                text: 'Status:'
+                text: 'Agent status:  '
                 size_hint: (0.2, 1)
             Label:
                 id: agent_status_label
                 text: ''
-                size_hint: (0.2, 1)
-
-            # agent status
+                size_hint: (0.4, 1)
             Button:
                 id: agent_container_delete_button
                 on_release: app.controller.toggle_docker_container("agent")
@@ -176,12 +178,15 @@ ScreenManagement:
                 border: (0, 0, 0, 0)
                 background_normal: 'icons/blank.png'   
                 text: 'A'
+
+            # master status
+            Label:
+                text: 'Master status:  '
+                size_hint: (0.2, 1)
             Label:
                 id: master_status_label
                 text: ''
                 size_hint: (0.4, 1)
-
-            # master status
             Button:
                 id: master_container_delete_button
                 on_release: app.controller.toggle_docker_container("master")
@@ -191,6 +196,7 @@ ScreenManagement:
                 background_normal: 'icons/blank.png'
                 text: 'M'
 
+            # PE status
             Button:
                 id: pe_status_button
                 size_hint_y: None
@@ -199,6 +205,7 @@ ScreenManagement:
                 border: (0, 0, 0, 0)
                 on_release: root.pe_status_info()
 
+            # Docker status
             Button:
                 id: docker_status_button
                 size_hint_y: None
