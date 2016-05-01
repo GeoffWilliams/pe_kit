@@ -80,10 +80,33 @@ ScreenManagement:
                 size_hint: (None, None)
                 border: (0, 0, 0, 0)
                 on_release: app.root.current = 'menu'
-                background_normal: 'icons/menu.png'                    
+                background_normal: 'icons/menu.png'          
+                
+        # spacer
+        BoxLayout:
+            size_hint: (0,0.05)
+            
+        #
+        # master GUI
+        #
         BoxLayout:
             id: action_layout
             orientation: 'vertical'
+            borders: 5, 'solid', (1,0,0,1)
+            padding: 20
+            canvas.before:
+                Color:
+                    rgba: 1, .1, .1, .9
+                Line:
+                    rectangle: self.x+3,self.y+3,self.width-3,self.height-3   
+                    width: 4
+            AnchorLayout:
+                anchor_x: 'left'
+                size_hint: (None,None)
+                padding: 20
+                Label:
+                    text: 'Master'
+
             # console
             BoxLayout:
                 Button:
@@ -91,24 +114,71 @@ ScreenManagement:
                     text: 'Puppet Enterprise Console'
                     on_press: root.pe_console()
                     disabled: True
+                    
+        # spacer
+        BoxLayout:
+            size_hint: (0,0.05)
 
-                # terminal
+        #
+        # Agent GUI
+        #
+        BoxLayout:
+            orientation: 'vertical'
+            borders: 5, 'solid', (1,0,0,1)
+            padding: 20
+            canvas.before:
+                Color:
+                    rgba: .1, .1, 1, .9
+                Line:
+                    rectangle: self.x+3,self.y+3,self.width-3,self.height-3   
+                    width: 4
+            AnchorLayout:
+                anchor_x: 'left'
+                size_hint: (None,None)
+                padding: 20
+                Label:
+                    text: 'Agent'
+            
+            BoxLayout:
                 Button:
-                    id: terminal_button
-                    text: 'Master Terminal'
-                    on_press: root.pe_terminal()
+                    id: agent_provision_button
+                    text: self.free_text
+                    on_release: root.agent_provision()
+                    free_text: 'Provision'
+                    busy_text: 'Provisioning...'
+                    disabled: True
 
-            #
-            # Advanced
-            #
+                Button:
+                    id: agent_run_puppet_button
+                    text: self.free_text
+                    free_text: 'Run Puppet on Agent'
+                    busy_text: 'Running Puppet on Agent...'
+                    on_release: root.run_puppet(self, 'agent')
+                    disabled: True
+
+                Button:
+                    id: agent_demo_button
+                    text: 'Agent Demo'
+                    on_release: root.agent_demo()
+                    disabled: True
+
+        # spacer
+        BoxLayout:
+            size_hint: (0,0.05)
+
+        #
+        # Advanced
+        #            
+        BoxLayout:
+            orientation: 'vertical'
+            size_hint: (1, 0.2)
             Button:
                 text: 'Toggle advanced actions'
                 on_release: root.toggle_advanced()
-                size_hint: (0.4, 0.5)
 
             BoxLayout:
                 id: advanced_layout_holder
-
+                size_hint: (1, 0.8)
                 BoxLayout:
                     id: advanced_layout
 
@@ -121,39 +191,26 @@ ScreenManagement:
                         on_release: root.run_puppet(self, 'master')
                         busy: False
 
+                    # terminal
+                    Button:
+                        id: terminal_button
+                        text: 'Master Terminal'
+                        on_press: root.pe_terminal()
+                    
+                    Button:
+                        id: agent_terminal_button
+                        text: 'Agent Terminal'
+                        on_release: root.agent_terminal()
+                        disabled: True                    
+
                     # dockerbuild
                     Button:
                         id: dockerbuild_button
                         text: 'Dockerbuild'
                         on_release: root.dockerbuild()
-
+        # spacer
         BoxLayout:
-            Button:
-                id: agent_provision_button
-                text: self.free_text
-                on_release: root.agent_provision()
-                free_text: 'Provision'
-                busy_text: 'Provisioning...'
-                disabled: True
-                
-            Button:
-                id: agent_run_puppet_button
-                text: self.free_text
-                free_text: 'Run Puppet on Agent'
-                busy_text: 'Running Puppet on Agent...'
-                on_release: root.run_puppet(self, 'agent')
-                disabled: True
-            Button:
-                id: agent_terminal_button
-                text: 'Agent Terminal'
-                on_release: root.agent_terminal()
-                disabled: True
-            Button:
-                id: agent_demo_button
-                text: 'Agent Demo'
-                on_release: root.agent_demo()
-                disabled: True
-
+            size_hint: (0,0.05)
 
         #
         # Status

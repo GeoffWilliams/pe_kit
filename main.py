@@ -789,6 +789,7 @@ class Controller:
 
                 if self.settings.start_automatically:
                     self.start_pe()
+                    self.start_agent()
 
         else:
             # no docker machine
