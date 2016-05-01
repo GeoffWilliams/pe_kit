@@ -71,6 +71,7 @@ ScreenManagement:
             # settings
             Button:
                 size_hint: (None, None)
+                size: (50, 50)
                 border: (0, 0, 0, 0)
                 on_release: app.root.current = 'settings'
                 background_normal: 'icons/settings.png'
@@ -78,6 +79,7 @@ ScreenManagement:
             # menu
             Button:
                 size_hint: (None, None)
+                size: (50, 50)
                 border: (0, 0, 0, 0)
                 on_release: app.root.current = 'menu'
                 background_normal: 'icons/menu.png'          
@@ -234,6 +236,7 @@ ScreenManagement:
                 on_release: app.controller.toggle_docker_container("agent")
                 size_hint_y: None
                 size_hint_x: None
+                size: (50, 50)
                 border: (0, 0, 0, 0)
                 background_normal: 'icons/blank.png'   
                 text: 'A'
@@ -251,6 +254,7 @@ ScreenManagement:
                 on_release: app.controller.toggle_docker_container("master")
                 size_hint_y: None
                 size_hint_x: None
+                size: (50, 50)
                 border: (0, 0, 0, 0)
                 background_normal: 'icons/blank.png'
                 text: 'M'
@@ -260,6 +264,7 @@ ScreenManagement:
                 id: pe_status_button
                 size_hint_y: None
                 size_hint_x: None
+                size: (50, 50)
                 background_normal: 'icons/blank.png'
                 border: (0, 0, 0, 0)
                 on_release: root.pe_status_info()
@@ -269,6 +274,7 @@ ScreenManagement:
                 id: docker_status_button
                 size_hint_y: None
                 size_hint_x: None
+                size: (50, 50)
                 background_normal:  'icons/blank.png'
                 border: (0, 0, 0, 0)
                 on_release: root.docker_status_info()
