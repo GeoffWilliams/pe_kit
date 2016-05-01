@@ -13,23 +13,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
+import platform
 import subprocess
 class Utils:
 
     @staticmethod
     def docker_terminal(command=''):
-        print sys.platform
-        p = sys.platform
-        if p == "darwin":
+        p = platform.system()
+        if p == "Darwin":
             # http://stackoverflow.com/questions/989349/running-a-command-in-a-new-mac-os-x-terminal-window
-            shell="osascript -e 'tell application \"Terminal\" to do script \"eval $(docker-machine env default) && {command}\"'".format(command=command)
-        #elif p.startswith("linux"):
-        #  print("linux support untested - this sux")
-        #  shell="xterm"
+            shell="osascript -e 'tell application \"Terminal\" to do script \"eval $(docker-machine env default) && {command}\"'"
+        elif p == "Linux":
+            shell="xterm -e \"{command}\""
         else:
             raise("unsupported os " + p)
 
-        #l = [shell, command]
-        #subprocess.Popen(filter(None,l))
-        subprocess.Popen(shell, shell=True)
+        subprocess.Popen(shell.format(command=command), shell=True)
