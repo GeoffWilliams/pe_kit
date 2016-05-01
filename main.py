@@ -70,6 +70,7 @@ import datetime
 import ssl
 import textwrap
 from functools import partial
+import platform
 
 class Settings:
     DEFAULTS_FILE = os.path.dirname(os.path.realpath(__file__)) + "/defaults.cfg"
@@ -125,19 +126,29 @@ class DockerMachine():
     
     # is a start/stop operation in progress?
     in_progress = False
+    platform = platform.system()
 
     def __init__(self):
         self.logger.info("adjusted path for /usr/local/bin")
         os.environ['PATH'] = "/usr/local/bin/:" + os.environ['PATH']
 
-    def run_cmd(self, *command, **options):
-        return subprocess.check_output(env={
-          'PATH': "/usr/local/bin/:" + os.environ['PATH']
-        }, *command, **options)
+    def boot2docker(self):
+        """Everyone except Linux needs to use boot2docker/docker machine"""
+        return not self.platform == "Linux"
 
     def status(self):
-        status = subprocess.check_output(["docker-machine", "status"]).strip()
-        self.logger.info("docker-machine status: " + status)
+        try:
+            if self.boot2docker():
+                self.logger.debug("boot2docker mode")
+                status = subprocess.check_output(["docker-machine", "status"]).strip()
+            else:
+                self.logger.debug("native mode")
+                # we're good as long as we get exit status 0.  Non zero ends in exception
+                subprocess.check_output(["docker", "version"])
+                status = "Running"
+        except subprocess.CalledProcessError as e:
+                status = "Error"
+        self.logger.info("docker (machine|daemon) status: " + status)
         return status
 
     def start(self):
@@ -145,19 +156,22 @@ class DockerMachine():
         started = False
         try:
             if not self.in_progress and self.status() != "Running":
-                self.in_progress = True
-                out = subprocess.check_output(["docker-machine", "start"])
-                self.in_progress = False
+                if self.boot2docker():
+                    self.in_progress = True
+                    out = subprocess.check_output(["docker-machine", "start"])
+                    self.in_progress = False
 
-                if self.status() == "Running":
-                    self.logger.info("docker-machine started OK")
-                    started = True
+                    if self.status() == "Running":
+                        self.logger.info("docker-machine started OK")
+                        started = True
+                else:
+                    self.logger.error("Docker daemon needs to be started by super-user")
             else:
                 started = True
-                self.logger.info("docker-machine already running")
+                self.logger.info("docker (daemon|machine) already running")
 
             # setup the docker environment variables if we managed to start the daemon
-            if started:
+            if started and self.boot2docker():
                 out = subprocess.check_output(["docker-machine", "env"]).split("\n")
                 for line in out:
                     if not line.startswith('#') and line != "":
@@ -779,30 +793,36 @@ class Controller:
 
         self.dm = DockerMachine()
         if self.dm.start():
-            kwargs = kwargs_from_env()
+            if self.dm.boot2docker():
+                kwargs = kwargs_from_env()
+                if 'tls' not in kwargs:
+                    # daemon not setup/running.  Sleep here to allow the render thread to catch up if
+                    # we have just started otherwise there will be no app available to display the errors
+                    time.sleep(1)
+                    App.get_running_app().error("Docker could not be started, please check your system")
+                else:
+                    # docker ok
+                    kwargs['tls'].assert_hostname = False
 
-            if 'tls' not in kwargs:
-                # daemon not setup/running
-                self.app.error("Docker could not be started, please check your system")
-            else:
-                # docker ok
-                kwargs['tls'].assert_hostname = False
-
-                # save the boot2docker IP for use when we open browser windows
-                self.docker_url = kwargs['base_url']
+                    # save the boot2docker IP for use when we open browser windows
+                    self.docker_url = kwargs['base_url']
 
                 self.cli = Client(**kwargs)
 
-                # stop any existing container (eg if we were killed)
-                self.cleanup_container(self.container["agent"])
-                self.cleanup_container(self.container["master"])
+            else:
+                self.cli = Client(base_url='unix://var/run/docker.sock')
+                self.docker_url = "https://127.0.0.1"
+ 
+            # stop any existing container (eg if we were killed)
+            self.cleanup_container(self.container["agent"])
+            self.cleanup_container(self.container["master"])
 
-                # update downloadble and local images on the settings page
-                self.refresh_images()
+            # update downloadble and local images on the settings page
+            self.refresh_images()
 
-                if self.settings.start_automatically:
-                    self.start_pe()
-                    self.start_agent()
+            if self.settings.start_automatically:
+                self.start_pe()
+                self.start_agent()
 
         else:
             # no docker machine
@@ -861,9 +881,14 @@ class Controller:
             else:
                 self.logger.error("requested unknown container start: " + container_key)
 
+    def stop_all_docker_containers(self):
+        for container in self.container:
+            self.stop_docker_container(self.container[container])
+
     def stop_docker_container(self, container):
         # check we are still alive as this also gets called when we shut down
         if self.container_alive(container):
+            self.logger.info("stopping container " + container["name"])
             self.cli.remove_container(container=container["instance"].get('Id'), force=True)
 
     def start_docker_daemon(self):
@@ -1187,8 +1212,7 @@ class PeKitApp(App):
     def on_stop(self):
         self.controller.running = False
         if self.settings.shutdown_on_exit:
-            self.controller.stop_docker_container(self.container["master"])
-            self.controller.stop_docker_container(self.container["agent"])
+            self.controller.stop_all_docker_containers()
 
             
     def get_master_selected_image(self):
