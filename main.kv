@@ -45,12 +45,12 @@ ScreenManagement:
     pe_status_button: pe_status_button
     console_button: console_button
     terminal_button: terminal_button
-    master_run_puppet_button: master_run_puppet_button
+    master_run_puppet_button: master_run_puppet_button.__self__
     dockerbuild_button: dockerbuild_button
 
     
-    agent_provision_button: agent_provision_button
-    agent_run_puppet_button: agent_run_puppet_button
+    agent_provision_button: agent_provision_button.__self__
+    agent_run_puppet_button: agent_run_puppet_button.__self__
     agent_terminal_button: agent_terminal_button
     agent_demo_button: agent_demo_button
 
@@ -147,6 +147,7 @@ ScreenManagement:
                     free_text: 'Provision'
                     busy_text: 'Provisioning...'
                     disabled: True
+                    busy: False
 
                 Button:
                     id: agent_run_puppet_button
@@ -155,6 +156,7 @@ ScreenManagement:
                     busy_text: 'Running Puppet on Agent...'
                     on_release: root.run_puppet(self, 'agent')
                     disabled: True
+                    busy: False
 
                 Button:
                     id: agent_demo_button

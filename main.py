@@ -436,6 +436,9 @@ class MainScreen(Screen):
             elif exit_status == 2:
                 error = False
                 message = "Puppet run on {location} OK (changes)"
+            elif exit_status == -1:
+                error = True
+                message = "Puppet run on {location} FAILED, Puppet not installed yet"
             else:
                 error = True
                 message = "Puppet run on {location} OK (but resource errors)"
@@ -539,7 +542,8 @@ class MenuScreen(Screen):
         App.get_running_app().info("PE_Kit {version}".format(version = PeKitApp.__version__))
         
     def help(self):
-        webbrowser.open_new("https://github.com/{gh_repo}#help".format(self.settings.gh_repo))
+        webbrowser.open_new("https://github.com/{gh_repo}#help".format(
+            gh_repo=self.settings.gh_repo))
     
     def report_bug(self):
         def report_bug(x):
