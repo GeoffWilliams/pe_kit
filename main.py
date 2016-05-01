@@ -246,6 +246,15 @@ class SettingsScreen(Screen):
     
     def image_management_ui(self, layout, images, selected_image_name, selected_image_group):
         def image_action(button):
+            def delete_image_callback():
+                try:
+                    self.controller.delete_image(button.image_name)
+                except docker.errors.APIError as e:
+                    if e.response.status_code == 409:
+                        message = "Cannot delete image while it is still in use"
+                    else:
+                        message = "Cannot delete image, please check log for info"
+                    App.get_running_app().error(message)
             self.logger.info(
               "image action: {image_name}, {status}".format(
                     image_name=button.image_name, status=button.status))
@@ -268,7 +277,7 @@ class SettingsScreen(Screen):
                     "really delete image {image_name}?".format(
                         image_name=button.image_name,
                     ), 
-                    yes_callback=partial(self.controller.delete_image, button.image_name)
+                    yes_callback=delete_image_callback
                 )
                 
                 
@@ -588,7 +597,7 @@ class Controller:
         "agent": {
             "name": "pe_kit_agent__",
             "host": "agent.localdomain",
-            "image_name": "picoded/centos-systemd",
+            "image_name": "geoffwilliams/pe_agent_demo",
             "local_images": [],
             "images": [],
             "instance": None,
@@ -660,7 +669,7 @@ class Controller:
         return self.bash_cmd(self.CURL_COMMAND_SAFE)
         
     def delete_image(self, image_name):
-        self.cli.remove_image(image_name)
+        self.cli.remove_image(image_name)        
         self.refresh_images()
 
     def download_image(self, image_name):
@@ -1016,6 +1025,10 @@ class Controller:
             newest_image = local_images[0]
         else:
             newest_image = None
+        self.logger.info("Found {count} local images for {image_name}".format(
+            count=len(local_images),
+            image_name=container["image_name"]
+        ))
         return local_images, newest_image
 
     # images available for download
