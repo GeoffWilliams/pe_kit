@@ -1223,7 +1223,7 @@ class PeKitApp(App):
     """
     logger = logging.getLogger(__name__)
     settings = Settings()
-    __version__ = "v0.2.6"
+    __version__ = "v0.2.7"
     
     def check_update(self):
         """check for new release of the app"""
