@@ -844,8 +844,8 @@ class Controller:
                     alive = "running"
                 else:
                     alive = "stopped"
-            except requests.exceptions.ConnectionError:
-                self.logger.error("urllib3 error talking to docker daemon")
+            except (requests.exceptions.ConnectionError, requests.exceptions.ReadTimeout):
+                self.logger.error("requests (wrapped urllib3) error talking to docker daemon")
                 alive = "stopped"
         elif self.dm and self.dm.in_progress:
             alive = "loading"
