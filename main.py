@@ -559,7 +559,7 @@ class AboutScreen(Screen):
         
     def on_start(self):
         self.license_label.text = open(
-            os.path.dirname(__file__) + os.path.sep + "license_header.txt"
+            os.path.dirname(os.path.abspath(__file__)) + os.path.sep + "license_header.txt"
         ).read()
 
         
@@ -778,7 +778,13 @@ class Controller:
                 "container {container} not running, OK to start new one".format(
                     container=container["name"]))
 
-        
+    def bridge_ip(self):
+        """Get the IP address of the bridge if we are on linux"""
+        networks = self.cli.networks(names=["bridge"])
+        self.logger.debug(networks)
+        ip = networks[0]["IPAM"]["Config"][0]["Gateway"]
+        return ip
+
     def docker_init(self):
         #  boot2docker specific hacks in use - see:  http://docker-py.readthedocs.org/en/latest/boot2docker/
 
@@ -802,7 +808,8 @@ class Controller:
 
             else:
                 self.cli = Client(base_url='unix://var/run/docker.sock')
-                self.docker_url = "https://127.0.0.1"
+                self.docker_url = "https://{bridge_ip}".format(bridge_ip=self.bridge_ip())
+            self.logger.info("Docker URL: " + self.docker_url)
  
             # stop any existing container (eg if we were killed)
             self.cleanup_container(self.container["agent"])
