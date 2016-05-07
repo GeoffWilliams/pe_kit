@@ -83,7 +83,9 @@ class Settings:
     expose_ports = True
     master_selected_image = None
     agent_selected_image = None
-    gh_repo="geoffwilliams/pe_kit"
+    gh_repo = None
+    master_image = None
+    agent_image = None
 
     def __init__(self):
         self.__dict__ = self.__shared_state
@@ -98,7 +100,7 @@ class Settings:
         self.config.set("main", "master_selected_image", self.master_selected_image)
         self.config.set("main", "agent_selected_image", self.agent_selected_image)
         self.config.set("main", "gh_repo", self.gh_repo)
-
+        
         self.config.write(open(self.CONFIG_FILE, 'w'))
 
     def load(self):
@@ -113,6 +115,8 @@ class Settings:
         self.master_selected_image = self.config.get("main", "master_selected_image")
         self.agent_selected_image = self.config.get("main", "agent_selected_image")
         self.gh_repo = self.config.get("main", "gh_repo")
+        self.master_image = self.config.get("main", "master_image")
+        self.agent_image = self.config.get("main", "agent_image")
 
 
 class DockerMachine():
@@ -603,6 +607,7 @@ class Controller:
     __shared_state = {}
 
     logger = logging.getLogger(__name__)
+    settings = Settings()
     
     # container names, image info and urls for each image.
     #   * name - the name of the started container in docker
@@ -620,7 +625,7 @@ class Controller:
         "master": {
             "name": "pe_kit_master__",
             "host": "pe-puppet.localdomain",
-            "image_name": "geoffwilliams/pe_master_public_lowmem_r10k_dockerbuild",
+            "image_name": settings.master_image,
             "local_images": [],
             "images": [],
             "instance": None,
@@ -635,7 +640,7 @@ class Controller:
         "agent": {
             "name": "pe_kit_agent__",
             "host": "agent.localdomain",
-            "image_name": "geoffwilliams/pe_agent_demo",
+            "image_name": settings.agent_image,
             "local_images": [],
             "images": [],
             "instance": None,
@@ -663,15 +668,10 @@ class Controller:
     pe_console_port = 0
     dockerbuild_port = 0
     app = None
-    settings = Settings()
     daemon_status = "stopped"
     update_available = False
     dm = None
     active_downloads = []
-    selected_image = {
-        "agent": None,
-        "master": None,
-    }
 
     # app/program is running - threads use this to see if they should
     # continue executing
