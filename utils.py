@@ -15,17 +15,24 @@
 
 import platform
 import subprocess
+from settings import Settings
+
 class Utils:
 
     @staticmethod
     def docker_terminal(command=''):
-        p = platform.system()
-        if p == "Darwin":
-            # http://stackoverflow.com/questions/989349/running-a-command-in-a-new-mac-os-x-terminal-window
-            shell="osascript -e 'tell application \"Terminal\" to do script \"eval $(docker-machine env default) && {command}\"'"
-        elif p == "Linux":
-            shell="xterm -e \"{command}\""
+        settings = Settings()
+        # use terminal provided in settings file, otherwise detect
+        if settings.terminal_program:
+            shell = settings.terminal_program + " -e {command}"
         else:
-            raise("unsupported os " + p)
+            p = platform.system()
+            if p == "Darwin":
+                # http://stackoverflow.com/questions/989349/running-a-command-in-a-new-mac-os-x-terminal-window
+                shell="osascript -e 'tell application \"Terminal\" to do script \"eval $(docker-machine env default) && {command}\"'"
+            elif p == "Linux":
+                shell="xterm -e \"{command}\""
+            else:
+                raise("unsupported os " + p)
 
         subprocess.Popen(shell.format(command=command), shell=True)

@@ -31,7 +31,6 @@ fh.setFormatter(formatter)
 logger.addHandler(fh)
 
 
-import ConfigParser
 from kivy.app import App
 from kivy.clock import Clock
 from kivy.uix.boxlayout import BoxLayout
@@ -71,52 +70,7 @@ import ssl
 import textwrap
 from functools import partial
 import platform
-
-class Settings:
-    DEFAULTS_FILE = os.path.dirname(os.path.realpath(__file__)) + "/defaults.cfg"
-    CONFIG_FILE = os.path.expanduser('~') + "/.pe_kit.cfg"
-    __shared_state = {}
-    start_automatically = True
-    kill_orphans = True
-    use_latest_image = True
-    shutdown_on_exit = True
-    expose_ports = True
-    master_selected_image = None
-    agent_selected_image = None
-    gh_repo = None
-    master_image = None
-    agent_image = None
-
-    def __init__(self):
-        self.__dict__ = self.__shared_state
-        self.load()
-
-    def save(self):
-        self.config.set("main", "start_automatically", self.start_automatically)
-        self.config.set("main", "kill_orphans", self.kill_orphans)
-        self.config.set("main", "use_latest_image", self.use_latest_image)
-        self.config.set("main", "shutdown_on_exit", self.shutdown_on_exit)
-        self.config.set("main", "expose_ports", self.expose_ports)
-        self.config.set("main", "master_selected_image", self.master_selected_image)
-        self.config.set("main", "agent_selected_image", self.agent_selected_image)
-        self.config.set("main", "gh_repo", self.gh_repo)
-        
-        self.config.write(open(self.CONFIG_FILE, 'w'))
-
-    def load(self):
-        self.config = ConfigParser.RawConfigParser()
-        self.config.readfp(open(self.DEFAULTS_FILE))
-        self.config.read(self.CONFIG_FILE)
-        self.start_automatically = self.config.getboolean("main","start_automatically")
-        self.kill_orphans = self.config.getboolean("main","kill_orphans")
-        self.use_latest_image = self.config.getboolean("main","use_latest_image")
-        self.shutdown_on_exit = self.config.getboolean("main", "shutdown_on_exit")
-        self.expose_ports = self.config.getboolean("main", "expose_ports")
-        self.master_selected_image = self.config.get("main", "master_selected_image")
-        self.agent_selected_image = self.config.get("main", "agent_selected_image")
-        self.gh_repo = self.config.get("main", "gh_repo")
-        self.master_image = self.config.get("main", "master_image")
-        self.agent_image = self.config.get("main", "agent_image")
+from settings import Settings
 
 
 class DockerMachine():
