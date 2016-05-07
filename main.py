@@ -225,7 +225,7 @@ class SettingsScreen(Screen):
             minimum_height= self.master_image_management_layout.setter('height'))
         self.agent_image_management_layout.bind(
             minimum_height=self.agent_image_management_layout.setter('height'))
-
+        
     def back(self):
         """save settings and go back"""
         self.settings.use_latest_image      = self.use_latest_images_checkbox.active
@@ -327,9 +327,8 @@ class SettingsScreen(Screen):
             layout.add_widget(status_button)
             layout.add_widget(selected_button)        
 
-    def update_image_managment(self, x=None, force_refresh=False, ):
-
-            
+    def update_image_managment(self, x=None, force_refresh=False):
+        """refresh the lists of images on the settings page.  The .kv file forces"""
         if self.controller.images_refreshed or force_refresh:
             self.image_management_ui(
                 self.master_image_management_layout, 
@@ -344,6 +343,7 @@ class SettingsScreen(Screen):
                 "agent_selected_image"
             )
             self.controller.images_refreshed = False
+            self.images_ui_ready = True
 
 class MainScreen(Screen):
     """
@@ -364,6 +364,7 @@ class MainScreen(Screen):
     console_button                  = ObjectProperty(None)
     terminal_button                 = ObjectProperty(None)
     master_run_puppet_button        = ObjectProperty(None)
+    clean_certs_button              = ObjectProperty(None)
     dockerbuild_button              = ObjectProperty(None)
     
     # Agent actions
@@ -540,6 +541,25 @@ class MainScreen(Screen):
         
     def agent_demo(self):
         webbrowser.open_new(self.controller.demo_url())
+        
+    def clean_certs(self):
+        def clean():
+            master_cleaned, agent_cleaned = self.controller.clean_certs()
+            message = []
+            if master_cleaned:
+                message.append("Agent certificate purged from master")
+            if agent_cleaned:
+                message.append("SSL certificates purged from agent")
+
+            if not message:
+                message.append("No changes made, containers running?")
+
+            App.get_running_app().info("\n".join(message))
+            self.free_button(self.clean_certs_button)
+            
+        self.busy_button(self.clean_certs_button)
+        threading.Thread(target=clean).start()
+
 
 class MenuScreen(Screen):        
     """
@@ -648,6 +668,10 @@ class Controller:
     update_available = False
     dm = None
     active_downloads = []
+    selected_image = {
+        "agent": None,
+        "master": None,
+    }
 
     # app/program is running - threads use this to see if they should
     # continue executing
@@ -742,7 +766,7 @@ class Controller:
 
         if self.pe_url():
             try:
-                code = urllib2.urlopen(self.pe_url(), context=ctx).getcode()
+                code = urllib2.urlopen(self.pe_url(), context=ctx, timeout=5).getcode()
                 if code == 200:
                     self.logger.debug("puppet up and running :D")
                     status = "running"
@@ -819,14 +843,18 @@ class Controller:
 
             # update downloadble and local images on the settings page
             self.refresh_images()
-
-            if self.settings.start_automatically:
-                self.start_pe()
-                self.start_agent()
+            
+            # proceed to startup
+            self.autostart_containers()
 
         else:
             # no docker machine
             self.app.error("Unable to start docker :*(")
+            
+    def autostart_containers(self):
+            if self.settings.start_automatically:
+                self.start_pe()
+                self.start_agent()        
 
     def daemon_alive(self):
         """
@@ -917,12 +945,16 @@ class Controller:
         }
 
     def start_agent(self):
-        image_name = self.app.get_agent_selected_image()
-        return self.start_container(self.container["agent"], image_name)
+        """ start agent container """        
+        return self.start_container(
+            self.container["agent"], 
+            self.settings.agent_selected_image)
     
     def start_pe(self):
-        image_name = self.app.get_master_selected_image()
-        return self.start_container(self.container["master"], image_name)
+        """ Start PE """
+        return self.start_container(
+            self.container["master"], 
+            self.settings.master_selected_image)
         
     def start_container(self, container, image_name):
         status = False
@@ -1005,7 +1037,7 @@ class Controller:
         for container_key in ["agent", "master"]:
             container = self.container[container_key]
             container["local_images"], newest_local = self.update_local_images(container)
-            downloadable_images, newest_downloadable =self.update_downloadable_images(container)
+            downloadable_images, newest_downloadable = self.update_downloadable_images(container)
 
             # set flag here and pick it up in the render code
             if newest_downloadable > newest_local:
@@ -1071,7 +1103,7 @@ class Controller:
             images = json.load(
               urllib2.urlopen(
                 "https://registry.hub.docker.com/v2/repositories/%s/tags/" %
-                container["image_name"]
+                container["image_name"], timeout=5
               )
             )
             for tags in images["results"]:
@@ -1143,7 +1175,36 @@ class Controller:
         self.logger.debug("...done! result: {exit_code}".format(
             exit_code=exit_code))
         return exit_code  
+
+    def clean_certs(self):
+        """Delete agent cert from master and all certs from agent to allow reprovisioning"""
+        agent_cleaned = False
+        master_cleaned = False
         
+        # purge agent cert from master
+        if self.container_alive(self.container["master"]):
+            if self.pe_status() == "running":
+                # can only purge from puppet console if master is running or we get
+                # PDB error
+                cmd = "puppet node purge {host}"
+            else:
+                # no PDB..? we can still make reprovision work by doing cert clean...
+                cmd = "puppet cert clean {host}"
+            self.docker_exec(
+                self.container["master"], 
+                cmd.format(
+                    host=self.container["agent"]["host"]
+                )
+            )
+            master_cleaned = True
+
+        # agent
+        if self.container_alive(self.container["agent"]):
+            cmd = "rm -rf /etc/puppetlabs/puppet/ssl"
+            self.docker_exec(self.container["agent"], cmd)
+            agent_cleaned = True
+            
+        return master_cleaned, agent_cleaned
         
 class ScreenManagement(ScreenManager):
     """Screen management binding class"""
@@ -1164,8 +1225,9 @@ class PeKitApp(App):
             r = json.loads(
                 urllib2.urlopen(
                     "https://api.github.com/repos/{gh_repo}/releases".format(
-                        gh_repo=self.settings.gh_repo, timeout=5
-                    )
+                        gh_repo=self.settings.gh_repo,
+                    ), 
+                    timeout=5
                 ).read()
             )
             latest_tag = r[0]["tag_name"]
@@ -1207,7 +1269,7 @@ class PeKitApp(App):
             "secure and must not be used for production use.")
 
         # check for newer version
-        self.check_update()        
+        self.check_update()
         
     def on_stop(self):
         self.controller.running = False
@@ -1237,6 +1299,9 @@ class PeKitApp(App):
             try:
                 group = ToggleButton.get_widgets(widget_group)
                 self.logger.debug("found items in list: " + str(len(group)))
+                
+                # handle nothing selected yet
+                selected = None
                 for member in group:
                     self.logger.debug("state is: " + member.state)
                     if member.state == 'down':
@@ -1339,6 +1404,7 @@ class PeKitApp(App):
             screen.console_button: False if pe_status == "running" else True,
             screen.terminal_button: False if pe_status == "running" or pe_status == "loading" else True,
             screen.master_run_puppet_button: False if pe_status == "running" else True,
+            screen.clean_certs_button: False if pe_status == "running" or pe_status == "loading" or agent_uptime else True,
             screen.dockerbuild_button: False if pe_status == "running" or pe_status == "loading" else True,
             
             screen.agent_provision_button: False if pe_status == "running" and agent_uptime else True,

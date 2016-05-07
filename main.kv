@@ -46,6 +46,7 @@ ScreenManagement:
     console_button: console_button
     terminal_button: terminal_button
     master_run_puppet_button: master_run_puppet_button.__self__
+    clean_certs_button: clean_certs_button.__self__
     dockerbuild_button: dockerbuild_button
 
     
@@ -205,7 +206,16 @@ ScreenManagement:
                         id: agent_terminal_button
                         text: 'Agent Terminal'
                         on_release: root.agent_terminal()
-                        disabled: True                    
+                        disabled: True
+                        
+                    Button:
+                        id: clean_certs_button
+                        text:  self.free_text
+                        free_text: 'Clean Certs'
+                        busy_text: 'Cleaning...'
+                        on_release: root.clean_certs()
+                        busy: False
+                        disabled: True
 
                     # dockerbuild
                     Button:
@@ -284,8 +294,8 @@ ScreenManagement:
     name: 'settings'
 
     # widget/class variable mapping
-    master_image_management_layout: master_image_management_layout
-    agent_image_management_layout: agent_image_management_layout
+    master_image_management_layout: master_image_management_layout.__self__
+    agent_image_management_layout: agent_image_management_layout.__self__
     use_latest_images_checkbox: use_latest_images_checkbox
     start_automatically_checkbox: start_automatically_checkbox
     kill_orphans_checkbox: kill_orphans_checkbox
