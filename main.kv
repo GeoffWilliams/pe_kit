@@ -26,7 +26,8 @@ ScreenManagement:
     MainScreen:
     SettingsScreen:
     MenuScreen:
-  
+    AboutScreen:
+    
 <MainScreen>:
     name: 'main'
     
@@ -66,7 +67,7 @@ ScreenManagement:
             AnchorLayout:
                 size_hint: (0.8, 1) 
                 Label:
-                    text: 'PE Kit'
+                    text: 'PE_Kit'
                     font_size: '40sp'
                              
             # settings
@@ -401,8 +402,7 @@ ScreenManagement:
 
         Button:
             text: 'About'
-            on_release: root.about()
-            
+            on_release: app.root.current = 'about'
         Button:
             text: 'Help'
             on_release: root.help()
@@ -418,3 +418,27 @@ ScreenManagement:
         Button:
             text: 'Back'
             on_release: app.root.current = 'main'
+            
+<AboutScreen>:
+    name: 'about'
+    
+    license_label: license_label
+    AnchorLayout:
+        BoxLayout:
+            orientation: 'vertical'
+            size_hint: (0.8, 1)
+            Label:
+                text: 'PE_Kit'
+                font_size: '40sp'
+                size_hint: (1, 0.2)
+            Label:
+                text: app.__version__
+                size_hint: (1, 0.1)
+            Label:
+                id: license_label
+                size_hint: (1, 0.6)
+            Button:
+                text: 'Back'
+                size_hint: (1, 0.1)
+                on_release: app.root.current = 'menu'
+

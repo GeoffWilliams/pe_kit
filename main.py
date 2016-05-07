@@ -529,10 +529,7 @@ class MenuScreen(Screen):
     
     def __init__(self, **kwargs):
         super(MenuScreen, self).__init__(**kwargs)
-    
-    def about(self):
-        App.get_running_app().info("PE_Kit {version}".format(version = PeKitApp.__version__))
-        
+       
     def help(self):
         webbrowser.open_new("https://github.com/{gh_repo}#help".format(
             gh_repo=self.settings.gh_repo))
@@ -549,7 +546,20 @@ class MenuScreen(Screen):
         log = open(logfile).read()
         Clipboard.copy(log)
         App.get_running_app().info("Logfile copied to clipboard")
+        
+class AboutScreen(Screen):
+    """The about screen/dialogue"""
+    license_label = ObjectProperty(None)
+        
+    def __init__(self, **kwargs):
+        super(AboutScreen, self).__init__(**kwargs)
+        
+    def on_start(self):
+        self.license_label.text = open(
+            os.path.dirname(__file__) + os.path.sep + "license_header.txt"
+        ).read()
 
+        
     
 # borg class, see http://code.activestate.com/recipes/66531-singleton-we-dont-need-no-stinkin-singleton-the-bo/
 class Controller:
@@ -1210,8 +1220,9 @@ class PeKitApp(App):
         # hide advanced by default
         self.root.get_screen("main").toggle_advanced()
 
-        # setup the settings screen
+        # setup the settings and about screens
         self.root.get_screen("settings").on_start()
+        self.root.get_screen("about").on_start()
 
         # monitor the docker daemon and container
         Clock.schedule_interval(self.daemon_monitor, 3)
