@@ -31,6 +31,7 @@ class Settings:
     master_image = None
     agent_image = None
     terminal_program = None
+    provision_automatically = True
     
     def __init__(self):
         self.__dict__ = self.__shared_state
@@ -38,6 +39,7 @@ class Settings:
 
     def save(self):
         self.config.set("main", "start_automatically", self.start_automatically)
+        self.config.set("main", "provision_automatically", self.provision_automatically)
         self.config.set("main", "kill_orphans", self.kill_orphans)
         self.config.set("main", "use_latest_image", self.use_latest_image)
         self.config.set("main", "shutdown_on_exit", self.shutdown_on_exit)
@@ -53,6 +55,7 @@ class Settings:
         self.config.readfp(open(self.DEFAULTS_FILE))
         self.config.read(self.CONFIG_FILE)
         self.start_automatically = self.config.getboolean("main","start_automatically")
+        self.provision_automatically = self.config.getboolean("main","provision_automatically")
         self.kill_orphans = self.config.getboolean("main","kill_orphans")
         self.use_latest_image = self.config.getboolean("main","use_latest_image")
         self.shutdown_on_exit = self.config.getboolean("main", "shutdown_on_exit")

@@ -299,6 +299,9 @@ ScreenManagement:
     agent_image_management_layout: agent_image_management_layout.__self__
     use_latest_images_checkbox: use_latest_images_checkbox
     start_automatically_checkbox: start_automatically_checkbox
+    provision_automatically_label: provision_automatically_label
+
+    provision_automatically_checkbox: provision_automatically_checkbox
     kill_orphans_checkbox: kill_orphans_checkbox
     shutdown_on_exit_checkbox: shutdown_on_exit_checkbox
     expose_ports_checkbox: expose_ports_checkbox
@@ -366,8 +369,18 @@ ScreenManagement:
             # start automatically
             CheckBox:
                 id: start_automatically_checkbox
+                on_state: provision_automatically_checkbox.disabled = not self.active ; provision_automatically_label.disabled = not self.active
             Label:
                 text: 'Start container automatically'
+            
+            # provision automatically
+            CheckBox:
+                id: provision_automatically_checkbox
+                disabled: True
+            Label:
+                id: provision_automatically_label
+                text: 'Provision agent automatically'
+                disabled: True
             
             # kill orphans
             CheckBox:

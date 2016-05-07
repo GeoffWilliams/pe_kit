@@ -152,16 +152,17 @@ class SettingsScreen(Screen):
     """
 
     logger = logging.getLogger(__name__)
-    master_image_management_layout  = ObjectProperty(None)
-    agent_image_management_layout   = ObjectProperty(None)
-    use_latest_images_checkbox      = ObjectProperty(None)
-    start_automatically_checkbox    = ObjectProperty(None)
-    kill_orphans_checkbox           = ObjectProperty(None)
-    download_images_layout          = ObjectProperty(None)
-    master_selected_image_button    = ObjectProperty(None)
-    shutdown_on_exit_checkbox       = ObjectProperty(None)
-    expose_ports_checkbox           = ObjectProperty(None)
-    settings                        = Settings()
+    master_image_management_layout      = ObjectProperty(None)
+    agent_image_management_layout       = ObjectProperty(None)
+    use_latest_images_checkbox          = ObjectProperty(None)
+    start_automatically_checkbox        = ObjectProperty(None)
+    provision_automatically_checkbox    = ObjectProperty(None)
+    kill_orphans_checkbox               = ObjectProperty(None)
+    download_images_layout              = ObjectProperty(None)
+    master_selected_image_button        = ObjectProperty(None)
+    shutdown_on_exit_checkbox           = ObjectProperty(None)
+    expose_ports_checkbox               = ObjectProperty(None)
+    settings                            = Settings()
 
 
     def __init__(self, **kwargs):
@@ -169,11 +170,12 @@ class SettingsScreen(Screen):
         self.controller = Controller()
 
     def on_start(self):
-        self.use_latest_images_checkbox.active    = self.settings.use_latest_image
-        self.start_automatically_checkbox.active  = self.settings.start_automatically
-        self.kill_orphans_checkbox.active         = self.settings.kill_orphans
-        self.shutdown_on_exit_checkbox.active     = self.settings.shutdown_on_exit
-        self.expose_ports_checkbox.active         = self.settings.expose_ports
+        self.use_latest_images_checkbox.active          = self.settings.use_latest_image
+        self.start_automatically_checkbox.active        = self.settings.start_automatically
+        self.provision_automatically_checkbox.active    = self.settings.provision_automatically
+        self.kill_orphans_checkbox.active               = self.settings.kill_orphans
+        self.shutdown_on_exit_checkbox.active           = self.settings.shutdown_on_exit
+        self.expose_ports_checkbox.active               = self.settings.expose_ports
 
         # periodically refresh the image managment grid if we need to
         Clock.schedule_interval(self.update_image_managment, 0.5)
@@ -186,13 +188,14 @@ class SettingsScreen(Screen):
         
     def back(self):
         """save settings and go back"""
-        self.settings.use_latest_image      = self.use_latest_images_checkbox.active
-        self.settings.start_automatically   = self.start_automatically_checkbox.active
-        self.settings.kill_orphans          = self.kill_orphans_checkbox.active
-        self.settings.shutdown_on_exit      = self.shutdown_on_exit_checkbox.active
-        self.settings.expose_ports          = self.expose_ports_checkbox.active
-        self.settings.master_selected_image = App.get_running_app().get_master_selected_image()
-        self.settings.agent_selected_image  = App.get_running_app().get_agent_selected_image()
+        self.settings.use_latest_image          = self.use_latest_images_checkbox.active
+        self.settings.start_automatically       = self.start_automatically_checkbox.active
+        self.settings.provision_automatically   = self.provision_automatically_checkbox.active
+        self.settings.kill_orphans              = self.kill_orphans_checkbox.active
+        self.settings.shutdown_on_exit          = self.shutdown_on_exit_checkbox.active
+        self.settings.expose_ports              = self.expose_ports_checkbox.active
+        self.settings.master_selected_image     = App.get_running_app().get_master_selected_image()
+        self.settings.agent_selected_image      = App.get_running_app().get_agent_selected_image()
 
         self.logger.info("save settings:" + str(self.settings))
         self.settings.save()
@@ -816,9 +819,12 @@ class Controller:
             self.app.error("Unable to start docker :*(")
             
     def autostart_containers(self):
-            if self.settings.start_automatically:
-                self.start_pe()
-                self.start_agent()        
+        if self.settings.start_automatically:
+            self.start_pe()
+            self.start_agent()
+            if self.settings.provision_automatically:
+                threading.Thread(target=self.auto_provision).start()
+
 
     def daemon_alive(self):
         """
@@ -1108,9 +1114,38 @@ class Controller:
     def run_puppet(self, container):
         """Run puppet on the master or agent"""
         return self.docker_exec(container, "puppet agent --detailed-exitcodes -t")
+    
+    def auto_provision(self):
+        self.logger.info("starting auto provision thread...")
+        provisioned = False
+        while not provisioned and self.running:
+            if (self.container_alive(self.container["agent"]) and       
+                    self.container_alive(self.container["master"]) and
+                    self.pe_status() == "running"):
+                    
+                # can only provision when PE is running and agent is alive
+                self.complete_provision()
+                provisioned = True
+            else:
+                time.sleep(1)
+        self.logger.info("...auto provisioning complete!")
+
+                
+    def complete_provision(self):
+        """Provision agent, sign cert, run puppet on agent - AIO"""
+        self.logger.info("provisioning agent...")
+        self.agent_provision()
+        self.logger.info("signing agent cert on master...")
+        self.docker_exec(self.container["master"],"puppet cert sign {host}".format(
+            host=self.container["agent"]["host"]
+            ))
+        self.logger.info("running puppet on agent...")
+        self.run_puppet(self.container["agent"])
+        self.logger.info("...provisioning complete! :D")
+        
         
     def agent_provision(self):
-        """Install puppet on agent"""
+        """Install puppet on agent - you need to accept and run puppet manually"""
         # fix /etc/hosts
         fix_hosts_cmd = self.fix_hosts_cmd()
         self.docker_exec(self.container["agent"], fix_hosts_cmd)
