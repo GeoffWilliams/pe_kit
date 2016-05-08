@@ -321,6 +321,8 @@ ScreenManagement:
         # Image Management     
         ScrollView:
             size: self.size
+            scroll_type: ['content','bars']
+            bar_width: '10dp'
             GridLayout:
                 id: master_image_management_layout
                 size_hint_y: None
@@ -338,6 +340,8 @@ ScreenManagement:
 
         ScrollView:
             size: self.size
+            scroll_type: ['content','bars']
+            bar_width: '10dp'            
             # Agent Image Management     
             GridLayout:
                 id: agent_image_management_layout

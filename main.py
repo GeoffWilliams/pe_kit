@@ -394,7 +394,7 @@ class MainScreen(Screen):
         App.get_running_app().info("Launching dockerbuild - have fun :)")
 
         def open_browser(dt):
-            webbrowser.open_new(self.controller.container["master"]["urls"]["9000/tcp"])
+            webbrowser.open_new(self.controller.dockerbuild_url())
 
         # call the named callback in 2 seconds (delay without freezing)
         Clock.schedule_once(open_browser, 2)
@@ -630,10 +630,6 @@ class Controller:
     
     docker_url = None
     docker_address = "unknown"
-    pe_url = None
-    dockerbuild_url = None
-    pe_console_port = 0
-    dockerbuild_port = 0
     app = None
     daemon_status = "stopped"
     update_available = False
@@ -654,10 +650,18 @@ class Controller:
         self.__dict__ = self.__shared_state
         
     def pe_url(self):
-        return self.container["master"]["urls"]["443/tcp"]
+        try:
+            url = self.container["master"]["urls"]["443/tcp"]
+        except KeyError:
+            url = None
+        return url
     
     def dockerbuild_url(self):
-        return self.container["master"]["urls"]["9000/tcp"]
+        try:
+            url = self.container["master"]["urls"]["9000/tcp"]
+        except KeyError:
+            url = None
+        return url
     
     def demo_url(self):
         return self.container["agent"]["urls"]["9090/tcp"]
