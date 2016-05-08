@@ -2,7 +2,7 @@
 
 ## Quickstart
 1. Click `Settings`
-2. Slect one image each from the Master Image Management and Agent Image Management lists and click ![available icon](../icons/available.png) to download them.  This will take several minutes as the images are serveral gigabytes in size.  If you like, you can skip this step and use the [docker pull]( https://docs.docker.com/engine/reference/commandline/pull/) command instead.
+2. Slect one image each from the Master Image Management and Agent Image Management lists and click <img src="../icons/available.png" width=40px /> to download them.  This will take several minutes as the images are serveral gigabytes in size.  If you like, you can skip this step and use the [docker pull]( https://docs.docker.com/engine/reference/commandline/pull/) command instead.
 3. Close PE_Kit by clicking the window's close button
 4. Start PE_Kit again.  With the default settings, this will start both the Master and Agent containers
 5. As the system loads, buttons will start to be enabled for the Master (red box) and the Agent (blue box).   This takes approximately two minutes to complete and by the end there should be a Puppet logo in towards the bottom right of the screen.
@@ -23,10 +23,9 @@ The bottom right corner of the main screen displays the current docker status.  
 
 | Icon | Description |
 | ---- | ----------- |
-| ![ok icon](../icons/ok.png) | Docker is working |
+| ![ok icon](../icons/ok.png) | Docker is working **(Must be visible for the GUI actions to work)** |
 | ![wait icon](../icons/wait.png) | Docker is starting |
 | ![error icon](../icons/error.png) | Error talking to Docker |
-The ![ok icon](../icons/ok.png) needs to be present at all times for any actions in the GUI to be effective.
 
 ### PE status
 The GUI will periodically attempt to poll the PE console to check on its health.  This is communicated back to the user by displaying an icon towards the bottom right corner of the main screen.  The icon can be clicked to provide detailed information.
@@ -35,7 +34,7 @@ The GUI will periodically attempt to poll the PE console to check on its health.
 | ---- | ----------- |
 | ![disabled icon](../icons/disabled.png) | The Master container is not running |
 | ![wait icon](../icons/wait.png) | PE is loading (takes about 2 minutes) |
-| ![puppet icon](../icons/puppet.png) | PE console is available (click to copy curl command) |
+| ![puppet icon](../icons/puppet.png) | PE console is available (click to copy the [Frictionless Installer command](https://docs.puppet.com/pe/latest/install_agents.html#scenario-1-the-osarchitecture-of-the-puppet-master-and-the-agent-node-are-the-same) to the clipboard) |
 
 
 ### Starting and stopping containers
@@ -47,8 +46,6 @@ If `Start containers automatically` is ticked, a Master and Agent container will
 | ![delete icon](../icons/delete.png) | Container is running, click to stop<sup>[1](#footnote1)</sup> |
 
 The icon for each container is overlayed with an 'A' for Agent or an 'M' for Master so that the user can tell which button is which.
-
-If you would like to stop a container, click ![delete icon](../icons/delete.png) and it will be stopped immediately.  You can restart the container by clicking ![play icon](../icons/play.png).
 
 Note that if `Start containers automatically` is not ticked, you must start the containers you want to use manually by clicking ![play icon](../icons/play.png).
 
