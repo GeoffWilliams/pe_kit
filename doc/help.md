@@ -19,6 +19,31 @@ On startup, the PE_Kit will check to see if a new version of PE_Kit has been rel
 
 ![main screen](../images/main_screen.png)
 
+### Master actions
+
+| Button | Description |
+| ------ | ----------- |
+| Puppet Enterprise Console| Open the Puppet Enterprise Console in the system web browser |
+
+### Agent actions
+
+| Button | Description |
+| ------ | ----------- |
+| Provision | Run the [Frictionless Installer command](https://docs.puppet.com/pe/latest/install_agents.html#scenario-1-the-osarchitecture-of-the-puppet-master-and-the-agent-node-are-the-same) on the Agent.  You will need to [accept the certificate manually] (https://docs.puppet.com/pe/latest/console_cert_mgmt.html#managing-node-requests).  If you've ticked `Start containers automatically` and `Provision agent automatically` on the settings page, then you don't need to use this button |
+| Run Puppet on Agent | Attempt to run Puppet on the agent |
+| Agent Demo | Show some infomation about how Puppet works using the system web browser |
+
+### Advanced actions
+
+| Button | Description |
+| ------ | ----------- |
+| Run Puppet on Master | Run Puppet on the Master |
+| Master Terminal | Open a terminal on the Master container |
+| Agent Terminal | Open a terminal on the Agent container |
+| Clean Certs | Clean certificates from the Master and Agent to allow re-provisioning without restarting |
+| Dockerbuild | Open an instance of [dockerbuild](https://github.com/GeoffWilliams/puppet-dockerbuild) running in the master container with the system web browser |
+
+
 ### Docker daemon status
 The bottom right corner of the main screen displays the current docker status.  The icon can be clicked to provided detailed information.  On OSX, PE_Kit will attempt to start boot2docker using the `docker-machine` command if it is not detected running.
 
