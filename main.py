@@ -534,7 +534,7 @@ class MenuScreen(Screen):
         super(MenuScreen, self).__init__(**kwargs)
        
     def help(self):
-        webbrowser.open_new("https://github.com/{gh_repo}/doc/help.md#pe_kit-help".format(
+        webbrowser.open_new("https://github.com/{gh_repo}/blob/master/doc/help.md#pe_kit-help".format(
             gh_repo=self.settings.gh_repo))
     
     def report_bug(self):
@@ -1227,7 +1227,7 @@ class PeKitApp(App):
     """
     logger = logging.getLogger(__name__)
     settings = Settings()
-    __version__ = "v0.2.7"
+    __version__ = "v0.2.8"
     
     def check_update(self):
         """check for new release of the app"""
