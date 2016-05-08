@@ -1,12 +1,12 @@
 # PE_Kit Help
 
 ## Quickstart
-1. Click <img src="../icons/settings.png" width=20px />
-2. Slect one image each from the Master Image Management and Agent Image Management lists and click <img src="../icons/available.png" width=20px /> to download them.  This will take several minutes as the images are serveral gigabytes in size.  If you like, you can skip this step and use the [docker pull]( https://docs.docker.com/engine/reference/commandline/pull/) command instead.
+1. Click <img src="../icons/settings.png" width="20px" />
+2. Slect one image each from the Master Image Management and Agent Image Management lists and click <img src="../icons/available.png" width="20px" /> to download them.  This will take several minutes as the images are serveral gigabytes in size.  If you like, you can skip this step and use the [docker pull]( https://docs.docker.com/engine/reference/commandline/pull/) command instead.
 3. Close PE_Kit by clicking the window's close button
 4. Start PE_Kit again.  With the default settings, this will start both the Master and Agent containers
 5. As the system loads, buttons will start to be enabled for the Master (red box) and the Agent (blue box).   This takes approximately two minutes to complete and by the end there should be a Puppet logo in towards the bottom right of the screen.
-6. With ![puppet icon](../icons/puppet.png) displayed, click `Puppet Enterprise Console` and your system web browser will open and navigate to the URL where the console is running
+6. With <img src="../icons/puppet.png"  width="20px"/> displayed, click `Puppet Enterprise Console` and your system web browser will open and navigate to the URL where the console is running
 7. Click through the warning from your browser and login to the console:
     * Username: `admin`
     * Password: `aaaaaaaa` (eight a's)
@@ -16,6 +16,7 @@
 The main screen gives the status of the Docker daemon and lets you start/stop containers.  As containers become active, the GUI will progressively enable more actions as different parts of the system become available.
 
 On startup, the PE_Kit will check to see if a new version of PE_Kit has been released.  You should always make sure your running the latest version of PE_Kit before reporting bugs.
+
 ![main screen](../images/main_screen.png)
 
 ### Docker daemon status
@@ -23,18 +24,18 @@ The bottom right corner of the main screen displays the current docker status.  
 
 | Icon | Description |
 | ---- | ----------- |
-| ![ok icon](../icons/ok.png) | Docker is working **(Must be visible for the GUI actions to work)** |
-| ![wait icon](../icons/wait.png) | Docker is starting |
-| ![error icon](../icons/error.png) | Error talking to Docker |
+| <img src="../icons/ok.png" width="20px"/> | Docker is working **(Must be visible for the GUI actions to work)** |
+| <img src="../icons/wait.png" width="20px"/> | Docker is starting |
+| <img src="../icons/error.png" width="20px"/> | Error talking to Docker |
 
 ### PE status
 The GUI will periodically attempt to poll the PE console to check on its health.  This is communicated back to the user by displaying an icon towards the bottom right corner of the main screen.  The icon can be clicked to provide detailed information.
 
 | Icon | Description |
 | ---- | ----------- |
-| ![disabled icon](../icons/disabled.png) | The Master container is not running |
-| ![wait icon](../icons/wait.png) | PE is loading (takes about 2 minutes) |
-| ![puppet icon](../icons/puppet.png) | PE console is available (click to copy the [Frictionless Installer command](https://docs.puppet.com/pe/latest/install_agents.html#scenario-1-the-osarchitecture-of-the-puppet-master-and-the-agent-node-are-the-same) to the clipboard) |
+| <img src="../icons/disabled.png" width="20px"/> | The Master container is not running |
+| <img src="../icons/wait.png" width="20px"/> | PE is loading (takes about 2 minutes) |
+| <img src="../icons/puppet.png" width="20px"/> | PE console is available (click to copy the [Frictionless Installer command](https://docs.puppet.com/pe/latest/install_agents.html#scenario-1-the-osarchitecture-of-the-puppet-master-and-the-agent-node-are-the-same) to the clipboard) |
 
 
 ### Starting and stopping containers
@@ -42,39 +43,39 @@ If `Start containers automatically` is ticked, a Master and Agent container will
 
 | Icon | Description |
 | ---- | ----------- |
-| ![play icon](../icons/play.png) | Container isn't running, click to start |
-| ![delete icon](../icons/delete.png) | Container is running, click to stop<sup>[1](#footnote1)</sup> |
+| <img src="../icons/play.png" width="20px"/> | Container isn't running, click to start |
+| <img src="../icons/delete.png" width="20px"/> | Container is running, click to stop<sup>[1](#footnote1)</sup> |
 
 The icon for each container is overlayed with an 'A' for Agent or an 'M' for Master so that the user can tell which button is which.
 
-Note that if `Start containers automatically` is not ticked, you must start the containers you want to use manually by clicking ![play icon](../icons/play.png).
+Note that if `Start containers automatically` is not ticked, you must start the containers you want to use manually by clicking <img src="../icons/play.png" width="20px"/>.
 
 <a name="footnote1">1</a>: Destroying a container permanently deletes any data stored in it.  A fresh system will be created for you next time you click the start container button.
 
 
 
 ## Settings Screen
-The settings screen allows the user to easily manage images and configure PE_Kit and is accessed by clicking ![play icon](../icons/settings.png) on the main screen.  
+The settings screen allows the user to easily manage images and configure PE_Kit and is accessed by clicking <img src="../icons/settings.png" width="20px"/> on the main screen.  
 
-New versions of Puppet Enterprise need to be made available on DockerHub before they can be used.  PE_Kit checks for new images on startup and alerts the user if new images exist.  These can then be downloaded by clicking ![available icon](../icons/available.png).
+New versions of Puppet Enterprise need to be made available on DockerHub before they can be used.  PE_Kit checks for new images on startup and alerts the user if new images exist.  These can then be downloaded by clicking <img src="../icons/available.png" width="20px"/>.
 
 ![settings screen](../images/settings_screen.png)
 
 ### Managing images
 When PE_Kit starts, it will build a combined list of all available local and remote images for the Master and Agent.  The lists will be drawn with scrollbars if they are long enough to need them.  One of the following icons will be displayed for each image:
 
-| Status | Icon | Description |
-| ------ | ---- | ----------- |
-| Available | ![delete icon](../icons/delete.png) | Image downloaded and available for use, click to delete|
-| Downloadable | ![available icon](../icons/available.png) | Image avaiable on Docker Hub, click to download |
-| Downloading | ![download icon](../icons/download.png) | Image is currently downloading, click to stop |
+| Icon | Description |
+| ---- | ----------- |
+| <img src="../icons/delete.png" width="20px"/> | Image downloaded and available for use, click to delete|
+| <img src="../icons/available.png" width="20px"/> | Image avaiable on Docker Hub, click to download |
+| <img src="../icons/download.png" width="20px"/> | Image is currently downloading, click to stop |
 
 If `Use latest images` is deselected, an additional icon will appear next to _local_ images
 
 | Icon | Description |
 | ---- | ----------- |
-| ![selected icon](../icons/selected_image.png) | Use this image |
-| ![deselected icon](../icons/deselected_image.png) | Do not use this image |
+| <img src="../icons/selected_image.png" width="20px"/> | Use this image |
+| <img src="../icons/deselected_image.png" width="20px"/> | Do not use this image |
 You must then select one image from each group to use for the Master and Agent.  Your selection will be activated when you click `back`.
 
 ### Program behaviour
@@ -90,7 +91,7 @@ You can alter PE_Kit behaviour by clicking the checkbox to the left of the descr
 | Expose Puppet and MCollective ports | Map ports to the local machine/boot2docker to allow other systems to connect to Puppet |
 
 ## Menu Screen
-The menu screen is accessed by clicking ![menu icon](../icons/menu.png) on the main screen.
+The menu screen is accessed by clicking <img src="../icons/menu.png" width="20px" style="background-color:black;"/> on the main screen.
 ![menu screen](../images/menu_screen.png)
 
 | Button | Description |
