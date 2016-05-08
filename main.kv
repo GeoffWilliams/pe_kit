@@ -375,7 +375,7 @@ ScreenManagement:
                 id: start_automatically_checkbox
                 on_state: provision_automatically_checkbox.disabled = not self.active ; provision_automatically_label.disabled = not self.active
             Label:
-                text: 'Start container automatically'
+                text: 'Start containers automatically'
             
             # provision automatically
             CheckBox:
@@ -396,7 +396,7 @@ ScreenManagement:
             CheckBox:
                 id: shutdown_on_exit_checkbox
             Label:
-                text: 'Shutdown PE on on exit'
+                text: 'Shutdown containers on on exit'
            
             # Expose puppet and mcollective ports through docker
             CheckBox:

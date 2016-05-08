@@ -6,7 +6,7 @@
 3. Close PE_Kit by clicking the window's close button
 4. Start PE_Kit again.  With the default settings, this will start both the Master and Agent containers
 5. As the system loads, buttons will start to be enabled for the Master (red box) and the Agent (blue box).   This takes approximately two minutes to complete and by the end there should be a Puppet logo in towards the bottom right of the screen.
-6. With the ![puppet icon](../icons/puppet.png) icon displayed, click `Puppet Enterprise Console` and your system web browser will open and navigate to the URL where the console is running
+6. With ![puppet icon](../icons/puppet.png) displayed, click `Puppet Enterprise Console` and your system web browser will open and navigate to the URL where the console is running
 7. Click through the warning from your browser and login to the console:
     * Username: `admin`
     * Password: `aaaaaaaa` (eight a's)
@@ -20,6 +20,7 @@ On startup, the PE_Kit will check to see if a new version of PE_Kit has been rel
 
 ### Docker daemon status
 The bottom right corner of the main screen displays the current docker status.  The icon can be clicked to provided detailed information.  On OSX, PE_Kit will attempt to start boot2docker using the `docker-machine` command if it is not detected running.
+
 | Icon | Description |
 | ---- | ----------- |
 | ![ok icon](../icons/ok.png) | Docker is working |
@@ -29,6 +30,7 @@ The ![ok icon](../icons/ok.png) needs to be present at all times for any actions
 
 ### PE status
 The GUI will periodically attempt to poll the PE console to check on its health.  This is communicated back to the user by displaying an icon towards the bottom right corner of the main screen.  The icon can be clicked to provide detailed information.
+
 | Icon | Description |
 | ---- | ----------- |
 | ![disabled icon](../icons/disabled.png) | The Master container is not running |
@@ -38,6 +40,7 @@ The GUI will periodically attempt to poll the PE console to check on its health.
 
 ### Starting and stopping containers
 If `Start containers automatically` is ticked, a Master and Agent container will be started for you when PE_Kit starts.  The GUI will display an icon for both containers to indicate whether each one is running or not.
+
 | Icon | Description |
 | ---- | ----------- |
 | ![play icon](../icons/play.png) | Container isn't running, click to start |
@@ -69,7 +72,8 @@ When PE_Kit starts, it will build a combined list of all available local and rem
 | Downloadable | ![available icon](../icons/available.png) | Image avaiable on Docker Hub, click to download |
 | Downloading | ![download icon](../icons/download.png) | Image is currently downloading, click to stop |
 
-If `Use latest images` is deselected, an additional icon will appear next to _local_ images 
+If `Use latest images` is deselected, an additional icon will appear next to _local_ images
+
 | Icon | Description |
 | ---- | ----------- |
 | ![selected icon](../icons/selected_image.png) | Use this image |
@@ -77,7 +81,8 @@ If `Use latest images` is deselected, an additional icon will appear next to _lo
 You must then select one image from each group to use for the Master and Agent.  Your selection will be activated when you click `back`.
 
 ### Program behaviour
-You can alter PE_Kit behaviour by clicking the checkbox to the left of the description (it seems invisible on OSX) 
+You can alter PE_Kit behaviour by clicking the checkbox to the left of the description (it seems invisible on OSX)
+
 | Setting | Description |
 | ------- | ----------- |
 | Use latest images | Use the latest (by version number) available image for the Master and Agent |
@@ -100,7 +105,7 @@ The menu screen is accessed by clicking ![menu icon](../icons/menu.png) on the m
 | Back | Return to main screen |
 
 ## Configuration file
-PE_Kit settings are saved to the file `.pe_kit.cfg` in the current user's home directory.  While most of the important settings are managed by the settings screen, the following extra settings are available for customisation by expert users:
+PE_Kit settings are saved to the file `.pe_kit.cfg` in the current user's home directory.  While most of the important settings are managed by the settings screen, the following extra settings are available for customisation by expert users
 
 | Setting | Type | Description |
 | ------- | ----- | ----------- |
