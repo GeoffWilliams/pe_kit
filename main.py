@@ -534,7 +534,7 @@ class MenuScreen(Screen):
         super(MenuScreen, self).__init__(**kwargs)
        
     def help(self):
-        webbrowser.open_new("https://github.com/{gh_repo}#help".format(
+        webbrowser.open_new("https://github.com/{gh_repo}/doc/help.md".format(
             gh_repo=self.settings.gh_repo))
     
     def report_bug(self):
