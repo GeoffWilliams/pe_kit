@@ -1,8 +1,8 @@
 # PE_Kit Help
 
 ## Quickstart
-1. Click `Settings`
-2. Slect one image each from the Master Image Management and Agent Image Management lists and click <img src="../icons/available.png" width=40px /> to download them.  This will take several minutes as the images are serveral gigabytes in size.  If you like, you can skip this step and use the [docker pull]( https://docs.docker.com/engine/reference/commandline/pull/) command instead.
+1. Click <img src="../icons/settings.png" width=20px />
+2. Slect one image each from the Master Image Management and Agent Image Management lists and click <img src="../icons/available.png" width=20px /> to download them.  This will take several minutes as the images are serveral gigabytes in size.  If you like, you can skip this step and use the [docker pull]( https://docs.docker.com/engine/reference/commandline/pull/) command instead.
 3. Close PE_Kit by clicking the window's close button
 4. Start PE_Kit again.  With the default settings, this will start both the Master and Agent containers
 5. As the system loads, buttons will start to be enabled for the Master (red box) and the Agent (blue box).   This takes approximately two minutes to complete and by the end there should be a Puppet logo in towards the bottom right of the screen.
