@@ -116,7 +116,7 @@ You can alter PE_Kit behaviour by clicking the checkbox to the left of the descr
 | Expose Puppet and MCollective ports | Map ports to the local machine/boot2docker to allow other systems to connect to Puppet |
 
 ## Menu Screen
-The menu screen is accessed by clicking <img src="../icons/menu.png" width="20px" style="background-color:black;"/> on the main screen.
+The menu screen is accessed by clicking the [Hamburger Button](https://en.wikipedia.org/wiki/Hamburger_button) on the main screen.  <img src="../icons/menu.png" width="20px"/>
 ![menu screen](../images/menu_screen.png)
 
 | Button | Description |
