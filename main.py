@@ -1384,10 +1384,12 @@ class PeKitApp(App):
         screen = self.root.get_screen("main")
         pe_status = "stopped"
         agent_uptime = False
+        daemon_up = False
 
         if self.controller.daemon_status == "running":
             self.logger.debug("docker daemon ok :)")            
             daemon_icon = "icons/ok.png"
+            daemon_up = True
 
             # docker is alive, lets check the containers too
             master_uptime = self.container_monitor(
@@ -1422,6 +1424,9 @@ class PeKitApp(App):
             screen.agent_run_puppet_button: False if pe_status == "running" and agent_uptime else True,
             screen.agent_terminal_button: False if agent_uptime else True,
             screen.agent_demo_button: False if agent_uptime else True,
+            
+            screen.master_container_delete_button: False if daemon_up else True,
+            screen.agent_container_delete_button: False if daemon_up else True,
         }    
         if pe_status == "running":
             pe_status_icon = "icons/puppet.png"
