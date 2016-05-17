@@ -116,7 +116,9 @@ class DockerMachine():
             if not self.in_progress and self.status() != "Running":
                 if self.boot2docker():
                     self.in_progress = True
+                    self.logger.debug("starting docker-machine...")
                     out = subprocess.check_output(["docker-machine", "start"])
+                    self.logger.debug("...done starting docker-machine")
                     self.in_progress = False
 
                     if self.status() == "Running":
@@ -766,7 +768,7 @@ class Controller:
         try:
             if self.cli.inspect_container(container["name"]):
                 if self.settings.kill_orphans:
-                    self.logger.info("killing orphaned container")
+                    self.logger.info("killing orphaned container: " + container["name"])
                     self.cli.remove_container(container["name"], force=True)
                 else:
                     self.logger.info("inspecting existing container")
@@ -831,9 +833,11 @@ class Controller:
             
     def autostart_containers(self):
         if self.settings.start_automatically:
+            self.logger.info("starting PE and agent containers automatically...")
             self.start_pe()
             self.start_agent()
             if self.settings.provision_automatically:
+                self.logger.debug("provisioning puppet agent automatically...")
                 threading.Thread(target=self.auto_provision).start()
 
 
@@ -1062,6 +1066,16 @@ class Controller:
                 if image_name.startswith(container["image_name"]):
                     local_images.append(image_name)
             local_images.sort(reverse=True)
+            
+            # move any 3.8x images to the end of the list otherwise they
+            # will have been sorted to the start of the list
+            i = 0
+            while i < len(local_images):
+                # move any images not starting with :201x to the end of the list
+                # should be good for 4 years... 
+                if ":201" not in local_images[0]:
+                    local_images.append(local_images.pop(0))
+                i += 1
             
         if len(local_images):
             newest_image = local_images[0]
