@@ -128,7 +128,6 @@ class DockerMachine():
                     self.logger.error("Docker daemon needs to be started by super-user")
             else:
                 started = True
-                self.logger.info("docker (daemon|machine) already running")
 
             # setup the docker environment variables if we managed to start the daemon
             if started and self.boot2docker():
@@ -293,6 +292,12 @@ class SettingsScreen(Screen):
     def update_image_managment(self, x=None, force_refresh=False):
         """refresh the lists of images on the settings page.  The .kv file forces"""
         if self.controller.images_refreshed or force_refresh:
+          
+            # refresh selected agent in settings once GUI is ready
+            if self.settings.use_latest_image:
+                self.settings.master_selected_image = App.get_running_app().get_master_selected_image()
+                self.settings.agent_selected_image = App.get_running_app().get_agent_selected_image()
+            
             self.image_management_ui(
                 self.master_image_management_layout, 
                 self.controller.container["master"]["images"], 
@@ -306,7 +311,11 @@ class SettingsScreen(Screen):
                 "agent_selected_image"
             )
             self.controller.images_refreshed = False
-            self.images_ui_ready = True
+            
+            if self.controller.inital_setup_complete:
+                self.logger.debug("marking GUI ready")
+                self.controller.gui_ready = True
+
 
 class MainScreen(Screen):
     """
@@ -647,6 +656,13 @@ class Controller:
     # because since the update takes place in its own thread, we can't let
     # it interact with the GUI thread or we'll get segfaults
     images_refreshed = False
+    
+    # Flag to indicate inital image list and setup is complete
+    inital_setup_complete = False
+    
+    # Flag to indicate the GUI is live an selections in the settings
+    # object have been parsed in
+    gui_ready = False
 
     def __init__(self):
         self.__dict__ = self.__shared_state
@@ -834,6 +850,10 @@ class Controller:
     def autostart_containers(self):
         if self.settings.start_automatically:
             self.logger.info("starting PE and agent containers automatically...")
+            while not self.inital_setup_complete or not self.gui_ready:
+                self.logger.debug("waiting for inital_setup_complete...")
+                time.sleep(1)
+            self.logger.info("Finished waiting for GUI to start, booting containers...")
             self.start_pe()
             self.start_agent()
             if self.settings.provision_automatically:
@@ -1029,9 +1049,14 @@ class Controller:
                 self.update_available = True
 
             container["images"] = self.combine_image_list(container["local_images"], downloadable_images)
-
-        self.images_refreshed = True
+        self.logger.debug("marking initial_setup_complete")
         
+        # flag to indicate we have been setup at least ONCE after startup
+        self.inital_setup_complete = True
+        
+        # flag to indicate the GUI should be refreshed (gets set false after repaint)
+        self.images_refreshed = True
+          
     def combine_image_list(self, local_images, downloadable_images):
         # now combine into an array of hashes
         images = []
@@ -1153,7 +1178,7 @@ class Controller:
                 provisioned = True
             else:
                 time.sleep(1)
-        self.logger.info("...auto provisioning complete!")
+        self.logger.info("...auto provisioning complete (or thread exiting...)!")
 
                 
     def complete_provision(self):
@@ -1241,7 +1266,7 @@ class PeKitApp(App):
     """
     logger = logging.getLogger(__name__)
     settings = Settings()
-    __version__ = "v0.2.9"
+    __version__ = "v0.2.10"
     
     def check_update(self):
         """check for new release of the app"""
@@ -1299,6 +1324,7 @@ class PeKitApp(App):
     def on_stop(self):
         self.controller.running = False
         if self.settings.shutdown_on_exit:
+            self.info("stopping all docker containers")
             self.controller.stop_all_docker_containers()
 
             
@@ -1337,6 +1363,7 @@ class PeKitApp(App):
         return selected
 
     def error(self, message):
+        self.logger.error(message)
         return self.popup(title='Error!', message=message)
 
     def popup(self, title, message, question=False, yes_callback=None, no_callback=None):
@@ -1379,6 +1406,7 @@ class PeKitApp(App):
         )
     
     def info(self, message):
+        self.logger.info(message)
         return self.popup(title='Information', message=message)
         
     def container_monitor(self, container, button, label):

@@ -38,6 +38,10 @@ class Settings:
         self.load()
 
     def save(self):
+        # reset the selected image names if we are configued to use the latest image
+        if self.use_latest_image:
+            self.master_selected_image = None
+            self.agent_selected_image = None
         self.config.set("main", "start_automatically", self.start_automatically)
         self.config.set("main", "provision_automatically", self.provision_automatically)
         self.config.set("main", "kill_orphans", self.kill_orphans)
@@ -60,9 +64,11 @@ class Settings:
         self.use_latest_image = self.config.getboolean("main","use_latest_image")
         self.shutdown_on_exit = self.config.getboolean("main", "shutdown_on_exit")
         self.expose_ports = self.config.getboolean("main", "expose_ports")
-        self.master_selected_image = self.config.get("main", "master_selected_image")
-        self.agent_selected_image = self.config.get("main", "agent_selected_image")
         self.gh_repo = self.config.get("main", "gh_repo")
         self.master_image = self.config.get("main", "master_image")
         self.agent_image = self.config.get("main", "agent_image")
         self.terminal_program = self.config.get("main", "terminal_program")
+        # skip loading image selections if using latest images
+        if not self.use_latest_image:
+          self.master_selected_image = self.config.get("main", "master_selected_image")
+          self.agent_selected_image = self.config.get("main", "agent_selected_image")
