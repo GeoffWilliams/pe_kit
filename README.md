@@ -1,5 +1,5 @@
 # PE_Kit
-PE_Kit is a cross-platform (Linux and OSX) tool for demonstrating Puppet Enterprise _quickly_ and with the minimal amount of technical knowledge possible. 
+PE_Kit is a cross-platform (Linux and OSX) tool for demonstrating Puppet Enterprise _quickly_ and with the minimal amount of technical knowledge possible.
 ![main screen](images/main_screen.png)
 
 ## Documentation
@@ -60,3 +60,11 @@ A: [Kivy](https://kivy.org/) is a modern, touch enabled GUI with great cross-pla
 Q: Why does the GUI look so damn weird?
 
 A: Kivy defaults to a black, grey and blue colour scheme which I think looks kinda cutting-edge and cool although others may disagree with me.  It is apparently possible to [change the colours](http://www.it-digin.com/blog/?p=216) or create your own artwork but this isn't something that I was interested in doing.
+
+Q: Internet doesn't work inside any of the containers I booted (I'm using a MAC)?
+
+A: Short answer:
+```Shell
+docker-machine restart
+```
+Longer answer:  You'r probably hitting this [bug](https://github.com/boot2docker/boot2docker/issues/776) in boot2docker where changing wifi/networks on the main laptop doesn't change your DNS settings in `/etc/resolv.conf` within the boot2docker VM.  Alternatively you may have altered the DNS server to use in `/var/lib/boot2docker/profile` inside the boot2docker machine.  If so, make sure any DNS servers specified are reachable.  That said, the agent and master are supposed to work without any internet connectivity, if you find this is not the case, please open a bug against PE_Kit.
