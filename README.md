@@ -33,6 +33,14 @@ Q: Can I send you a Pull Request?
 
 A: Sure!  Please work on a feature branch and prepare your GitHub Pull Request in the usual way :)
 
+Q: Where do I get images?
+
+A: Unfortunately images cannot be shared outside of Puppet.  You would have to use [https://github.com/GeoffWilliams/puppet_docker_images/](https://github.com/GeoffWilliams/puppet_docker_images/) to build a compatible image.  After building, you will need to change the `master_image` setting in your `~/.pe_kit.cfg` file, eg:
+
+```
+master_image=my_cool_pe_build
+```
+
 Q: Why are the images so huge?!
 
 A: The images include an unpacked copy of the Puppet Enterprise installation media, agent software for all supported Puppet open-source agents and various other cool stuff, so yes they are somewhat large.
