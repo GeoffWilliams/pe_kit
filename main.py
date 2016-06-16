@@ -704,7 +704,7 @@ class Controller:
     gui_ready = False
     
     # Docker hub token - store to access multiple repos
-    token = None
+    #token = None
 
     def __init__(self):
         self.__dict__ = self.__shared_state
@@ -930,7 +930,7 @@ class Controller:
     def autostart_containers(self):
         if self.settings.start_automatically:
             self.logger.info("starting PE and agent containers automatically...")
-            while not self.inital_setup_complete or not self.gui_ready:
+            while self.running and (not self.inital_setup_complete or not self.gui_ready):
                 self.logger.debug("waiting for inital_setup_complete...")
                 time.sleep(1)
             self.logger.info("Finished waiting for GUI to start, booting containers...")
