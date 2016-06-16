@@ -71,7 +71,7 @@ import textwrap
 from functools import partial
 import platform
 from settings import Settings
-
+from requests.auth import HTTPBasicAuth
 
 class DockerMachine():
     """
@@ -145,41 +145,25 @@ class DockerMachine():
 
         return started
 
-class SettingsScreen(Screen):
+class ImagesScreen(Screen):
     """
-    Settings Screen
-
-    Screen for saving settings and managing docker images
+    Images Screen
+    
+    Screen for managing images
     """
-
+    
     logger = logging.getLogger(__name__)
     master_image_management_layout      = ObjectProperty(None)
     agent_image_management_layout       = ObjectProperty(None)
-    use_latest_images_checkbox          = ObjectProperty(None)
-    start_automatically_checkbox        = ObjectProperty(None)
-    provision_automatically_checkbox    = ObjectProperty(None)
-    kill_orphans_checkbox               = ObjectProperty(None)
-    download_images_layout              = ObjectProperty(None)
-    master_selected_image_button        = ObjectProperty(None)
-    shutdown_on_exit_checkbox           = ObjectProperty(None)
-    expose_ports_checkbox               = ObjectProperty(None)
     settings                            = Settings()
-
-
+    
     def __init__(self, **kwargs):
-        super(SettingsScreen, self).__init__(**kwargs)
+        super(ImagesScreen, self).__init__(**kwargs)
         self.controller = Controller()
-
+        
     def on_start(self):
-        self.use_latest_images_checkbox.active          = self.settings.use_latest_image
-        self.start_automatically_checkbox.active        = self.settings.start_automatically
-        self.provision_automatically_checkbox.active    = self.settings.provision_automatically
-        self.kill_orphans_checkbox.active               = self.settings.kill_orphans
-        self.shutdown_on_exit_checkbox.active           = self.settings.shutdown_on_exit
-        self.expose_ports_checkbox.active               = self.settings.expose_ports
-
         # periodically refresh the image managment grid if we need to
-        Clock.schedule_interval(self.update_image_managment, 0.5)
+        Clock.schedule_interval(self.update_image_managment, 1)
         
         # scrollable image list for images (agent and master)
         self.master_image_management_layout.bind(
@@ -187,21 +171,19 @@ class SettingsScreen(Screen):
         self.agent_image_management_layout.bind(
             minimum_height=self.agent_image_management_layout.setter('height'))
         
+    def on_enter(self):
+        self.logger.debug("update image screen")
+        self.update_image_managment(force_refresh=True)
+
     def back(self):
         """save settings and go back"""
-        self.settings.use_latest_image          = self.use_latest_images_checkbox.active
-        self.settings.start_automatically       = self.start_automatically_checkbox.active
-        self.settings.provision_automatically   = self.provision_automatically_checkbox.active
-        self.settings.kill_orphans              = self.kill_orphans_checkbox.active
-        self.settings.shutdown_on_exit          = self.shutdown_on_exit_checkbox.active
-        self.settings.expose_ports              = self.expose_ports_checkbox.active
         self.settings.master_selected_image     = App.get_running_app().get_master_selected_image()
         self.settings.agent_selected_image      = App.get_running_app().get_agent_selected_image()
 
         self.logger.info("save settings:" + str(self.settings))
         self.settings.save()
         App.get_running_app().root.current = 'main'
-
+        
     def get_image_button(self, status):
         if status == "downloadable":
             icon = "icons/available.png"
@@ -218,8 +200,8 @@ class SettingsScreen(Screen):
         button.height = "20dp"
 
         return button
-    
-    
+
+
     def image_management_ui(self, layout, images, selected_image_name, selected_image_group):
         def image_action(button):
             def delete_image_callback():
@@ -242,7 +224,7 @@ class SettingsScreen(Screen):
             elif button.image_name in self.controller.active_downloads:
                 # currently downloading
                 App.get_running_app().question(
-                    "Image {image_name} is downloading, cancel?".format(
+                    "Image:\n\n {image_name}\n\n is downloading, cancel?".format(
                         image_name=button.image_name
                     ),
                     yes_callback=partial(self.controller.stop_download, button.image_name)
@@ -266,7 +248,7 @@ class SettingsScreen(Screen):
             status_button.image_name = image["name"]
             status_button.status = image["status"]
             status_button.bind(on_release=image_action)
-            if self.use_latest_images_checkbox.active:
+            if self.settings.use_latest_image:
                 # add a blank label as a spacer to avoid breaking the display
                 selected_button = Label()
             else:
@@ -315,6 +297,63 @@ class SettingsScreen(Screen):
             if self.controller.inital_setup_complete:
                 self.logger.debug("marking GUI ready")
                 self.controller.gui_ready = True
+
+
+class SettingsScreen(Screen):
+    """
+    Settings Screen
+
+    Screen for saving settings
+    """
+
+    logger = logging.getLogger(__name__)
+    hub_address_textinput               = ObjectProperty(None)
+    hub_password_textinput              = ObjectProperty(None)
+    # hub_address_textinput               = ObjectProperty(None)
+    use_latest_images_checkbox          = ObjectProperty(None)
+    start_automatically_checkbox        = ObjectProperty(None)
+    provision_automatically_checkbox    = ObjectProperty(None)
+    kill_orphans_checkbox               = ObjectProperty(None)
+    download_images_layout              = ObjectProperty(None)
+    master_selected_image_button        = ObjectProperty(None)
+    shutdown_on_exit_checkbox           = ObjectProperty(None)
+    expose_ports_checkbox               = ObjectProperty(None)
+    settings                            = Settings()
+
+
+    def __init__(self, **kwargs):
+        super(SettingsScreen, self).__init__(**kwargs)
+        self.controller = Controller()
+
+    def on_start(self):
+        self.hub_username_textinput.text                = self.settings.hub_username
+        self.hub_password_textinput.text                = self.settings.hub_password
+        # self.hub_address_textinput.text                 = self.settings.hub_address
+        self.use_latest_images_checkbox.active          = self.settings.use_latest_image
+        self.start_automatically_checkbox.active        = self.settings.start_automatically
+        self.provision_automatically_checkbox.active    = self.settings.provision_automatically
+        self.kill_orphans_checkbox.active               = self.settings.kill_orphans
+        self.shutdown_on_exit_checkbox.active           = self.settings.shutdown_on_exit
+        self.expose_ports_checkbox.active               = self.settings.expose_ports
+        
+    def back(self):
+        """save settings and go back"""
+        self.settings.hub_username              = self.hub_username_textinput.text
+        self.settings.hub_password              = self.hub_password_textinput.text
+        # self.settings.hub_address               = self.hub_address_textinput.text
+        self.settings.use_latest_image          = self.use_latest_images_checkbox.active
+        self.settings.start_automatically       = self.start_automatically_checkbox.active
+        self.settings.provision_automatically   = self.provision_automatically_checkbox.active
+        self.settings.kill_orphans              = self.kill_orphans_checkbox.active
+        self.settings.shutdown_on_exit          = self.shutdown_on_exit_checkbox.active
+        self.settings.expose_ports              = self.expose_ports_checkbox.active
+
+        # commit changes
+        self.logger.info("save settings:" + str(self.settings))
+        self.settings.save()
+        
+        App.get_running_app().root.current = 'main'
+
 
 
 class MainScreen(Screen):
@@ -663,6 +702,9 @@ class Controller:
     # Flag to indicate the GUI is live an selections in the settings
     # object have been parsed in
     gui_ready = False
+    
+    # Docker hub token - store to access multiple repos
+    token = None
 
     def __init__(self):
         self.__dict__ = self.__shared_state
@@ -837,6 +879,14 @@ class Controller:
             self.cleanup_container(self.container["agent"])
             self.cleanup_container(self.container["master"])
 
+            # login to docker hub to get private image listings
+            if not self.hub_login():
+                self.app.error(
+                    "Unable to login to registry at {hub_address}, please check details".format(
+                        hub_address=self.settings.hub_address
+                    )
+                )
+
             # update downloadble and local images on the settings page
             self.refresh_images()
             
@@ -846,7 +896,37 @@ class Controller:
         else:
             # no docker machine
             self.app.error("Unable to start docker :*(")
-            
+
+    def hub_login(self):
+        """
+        Login to docker hub.  Return true on success otherwise false.
+        This allows the CLI object to do stuff with the private hub images.  We still
+        need to do our own separate authentication for docker hub API calls to get a 
+        list of image tags since this isn't possible using the client
+        """
+        status = False
+        if self.settings.hub_username and self.settings.hub_password and self.settings.hub_address:
+            self.logger.info("Logging in to docker hub...(WARNING - this takes a while to fail)")
+            try:
+                login_result = self.cli.login(
+                    self.settings.hub_username, 
+                    password=self.settings.hub_password, 
+                    registry=self.settings.hub_address,
+                )
+                self.logger.debug("LOGIN result " + str(login_result))
+                if login_result and login_result["Status"] == 'Login Succeeded':
+                    status = True
+                else:
+                    status = False
+            except docker.errors.APIError as e:
+                self.logger.exception(e)
+                self.logger.error("Error logging in to hub - see previous error")
+
+            self.logger.info("...login done! status={status}".format(status=status))
+        else:
+            self.logger.info("Not logging into docker hub - missing credentials in settings")
+        return status
+
     def autostart_containers(self):
         if self.settings.start_automatically:
             self.logger.info("starting PE and agent containers automatically...")
@@ -963,11 +1043,14 @@ class Controller:
         
     def start_container(self, container, image_name):
         status = False
-
         if self.container_alive(container):
             status = True
         else:
             if image_name:
+                self.logger.info("Starting container {name} using {image}".format(
+                    name=container["name"],
+                    image=image_name
+                ))
                 port_bindings_func = getattr(self, container["port_bindings_func"])
                 port_bindings = port_bindings_func()
                 proceed = True
@@ -1112,26 +1195,109 @@ class Controller:
         ))
         return local_images, newest_image
 
+    
+    # How to do authentication to/from the docker API borrowed from 
+    # http://www.cakesolutions.net/teamblogs/docker-registry-api-calls-as-an-authenticated-user
+    #
+    # Can't for the life of me figure out how to use the V2 api to do this on the public 
+    # forge against a private image.  Giving up for now, keeping code since might be useful...
+    #
+#    def hub_token(self, user, password, service, scope, realm):
+#        if self.token:
+#            token = self.token
+#        else:
+#            data = {
+#                "scope": "repository:" + scope, 
+#                "service":  service, 
+#                "account": user, 
+#                "client_id": "https://github.com/GeoffWilliams/pe_kit"
+#            }
+#            self.logger.debug("Auth_data: " + str(data))
+#            r = requests.get(
+#                "https://auth.docker.io/token", 
+#                auth=HTTPBasicAuth(user, password), 
+#                data=data, 
+#                timeout=5
+#            )
+#
+#            token=json.loads(str(r.content))["token"]
+#            self.token = token
+#
+#        self.logger.debug("Obtained token: " + token)
+#        return token
+#    
+#    def hub_request(self, api_url, token=None):
+#        if token:
+#            headers = {'Authorization':'Bearer ' + token}
+#        else:
+#            headers = {}
+#        response = requests.get(api_url, headers=headers, timeout=5)
+#        return response
+#    
+#    def hub_api(self, api_url, user, password, service, scope, realm):
+#        # first make the request unuathenticated
+#        self.logger.debug("making initial request for: " + api_url)
+#        response = self.hub_request(api_url)
+#        data = False
+#        if response.status_code != 200:
+#            self.logger.debug("non-successful status for: " + api_url)
+#            print(">>>>>>>>>>>>>>" + str(response.content))
+#            #{"errors":[{"code":"UNAUTHORIZED","message":"authentication required","detail":[{"Type":"repository","Name":"geoffwilliams/pe_master_public_lowmem_r10k_dockerbuild","Action":"pull"}]}]}
+#            if 'Www-Authenticate' in response.headers:
+#                # if we reach this, we need to authenticate...
+#                self.logger.info("Hub says authentication required...")
+#                #challenge = error.info()['Www-Authenticate']
+#                #print "******************" + str(challenge)
+#                
+#                # authenticate and re-try
+#                token = self.hub_token(user, password, service, scope, realm)
+#                response = self.hub_request(api_url, token)
+#                
+#                if response.status_code == 200:
+#                    self.logger.debug("200 OK - authenticated")
+#                    data = json.loads(str(response.content))
+#                else:
+#                    self.logger.error("Invalid response from docker hub: " + str(response.content))
+#                
+#            else:
+#                self.logger.info("HTTP error from docker hub: " + response.content)
+#        else:
+#            data = json.loads(str(response.content))
+#        return data
+
+    
     # images available for download
     def update_downloadable_images(self, container):
         """
         re-create the list of image tags available for download.  Updates
         self.master_downloadable_images to be a list of the available tags (strings)
         """
+        self.logger.debug("checking for remote images")
         downloadable_images = []
         try:
-            images = json.load(
-              urllib2.urlopen(
-                "https://registry.hub.docker.com/v2/repositories/%s/tags/" %
-                container["image_name"], timeout=5
-              )
+            # V2 API doesn't seem to support looking up tags for private images, cannot 
+            # find any documentation. Also note - trailing slash on v1 api is a 404
+            response = requests.get(
+                "https://registry.hub.docker.com/v1/repositories/{image_name}/tags".format(
+                    image_name = container["image_name"]
+                ), 
+                auth=HTTPBasicAuth(self.settings.hub_username, self.settings.hub_password),
+                timeout=5
             )
-            for tags in images["results"]:
-                # if image is already downloaded, don't list it as available for download
-                image_name = container["image_name"] + ":" + tags["name"]
-                if not self.tag_exists_locally(image_name):
-                    downloadable_images.append(image_name)
-        except urllib2.URLError:
+            if response.status_code == 200:
+                images = json.loads(str(response.content))
+
+                if images:
+                    for tags in images: # <<<V1 | V2>>> images["results"]:
+                        # if image is already downloaded, don't list it as available for download
+                        image_name = container["image_name"] + ":" + tags["name"]
+                        self.logger.info("checking status of remote image " + image_name)
+                        if not self.tag_exists_locally(image_name):
+                            downloadable_images.append(image_name)
+            else:
+                self.logger.error("Error from docker hub - image accessible and hub up?" + str(response))
+        except requests.exceptions.ConnectionError as e:
+            self.logger.exception(e)
             self.logger.error("failed to reach docker hub - no internet?")
         downloadable_images.sort(reverse=True)
         
@@ -1140,6 +1306,7 @@ class Controller:
         else:
             newest_image = None
             
+        self.logger.debug("finished checking remote images")
         return downloadable_images, newest_image
 
     # test if a tag has already been downloaded
@@ -1266,7 +1433,7 @@ class PeKitApp(App):
     """
     logger = logging.getLogger(__name__)
     settings = Settings()
-    __version__ = "v0.2.10"
+    __version__ = "v0.3.0"
     
     def check_update(self):
         """check for new release of the app"""
@@ -1306,11 +1473,12 @@ class PeKitApp(App):
         self.root.get_screen("main").toggle_advanced()
 
         # setup the settings and about screens
+        self.root.get_screen("images").on_start()        
         self.root.get_screen("settings").on_start()
         self.root.get_screen("about").on_start()
 
         # monitor the docker daemon and container
-        Clock.schedule_interval(self.daemon_monitor, 3)
+        Clock.schedule_interval(self.daemon_monitor, 1)
         
         # disclaimer message
         self.info(
@@ -1467,8 +1635,9 @@ class PeKitApp(App):
             screen.agent_terminal_button: False if agent_uptime else True,
             screen.agent_demo_button: False if agent_uptime else True,
             
-            screen.master_container_delete_button: False if daemon_up else True,
-            screen.agent_container_delete_button: False if daemon_up else True,
+            # FIXME more responsive here please
+            screen.master_container_delete_button: False if daemon_up and self.controller.gui_ready else True,
+            screen.agent_container_delete_button: False if daemon_up and self.controller.gui_ready else True,
         }    
         if pe_status == "running":
             pe_status_icon = "icons/puppet.png"
