@@ -8,7 +8,7 @@ You will need to download a PE Docker image (approx 3.5GB) and an agent image (a
 2. You need a bigger boot2docker image to avoid running out of space, eg:  
 ```shell
 docker-machine rm -f default
-docker-machine create -d virtualbox --virtualbox-disk-size "50000" default
+docker-machine create -d virtualbox --virtualbox-disk-size "50000" --virtualbox-memory "2048" default
 ```
 3. Test docker is working by running `Docker Quickstart Terminal` from your applications group by using spotlight.  The first run will take a while as [boot2docker](http://boot2docker.io/) needs to be started
 4. Download the latest [PE_Kit installer](https://github.com/GeoffWilliams/pe_kit/releases)
