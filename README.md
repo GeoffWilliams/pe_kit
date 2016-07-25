@@ -76,3 +76,6 @@ A: Short answer:
 docker-machine restart
 ```
 Longer answer:  You'r probably hitting this [bug](https://github.com/boot2docker/boot2docker/issues/776) in boot2docker where changing wifi/networks on the main laptop doesn't change your DNS settings in `/etc/resolv.conf` within the boot2docker VM.  Alternatively you may have altered the DNS server to use in `/var/lib/boot2docker/profile` inside the boot2docker machine.  If so, make sure any DNS servers specified are reachable.  That said, the agent and master are supposed to work without any internet connectivity, if you find this is not the case, please open a bug against PE_Kit.
+
+Q: I get the error `SEC_ERROR_REUSED_ISSUER_AND_SERIAL` on firefox and I can't get past it.
+A: Find and delete the file `cert8.db` in your firefox profile, then fully quit and restart Firefox.  There doesn't seem to be another way
