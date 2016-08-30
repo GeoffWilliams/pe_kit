@@ -320,6 +320,7 @@ ScreenManagement:
     kill_orphans_checkbox: kill_orphans_checkbox
     shutdown_on_exit_checkbox: shutdown_on_exit_checkbox
     expose_ports_checkbox: expose_ports_checkbox
+    shared_dir_textinput: shared_dir_textinput
 
     BoxLayout:
         orientation: 'vertical'
@@ -405,7 +406,13 @@ ScreenManagement:
                 id: expose_ports_checkbox
             Label:
                 text: 'Expose Puppet and MCollective ports'
-                               
+        
+            # shared directory
+            Label:
+                text: 'Shared directory inside homedir'
+            TextInput:
+                id: shared_dir_textinput
+
         Button:
             on_release: root.back()
             text: 'Back'

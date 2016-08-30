@@ -318,6 +318,7 @@ class SettingsScreen(Screen):
     master_selected_image_button        = ObjectProperty(None)
     shutdown_on_exit_checkbox           = ObjectProperty(None)
     expose_ports_checkbox               = ObjectProperty(None)
+    shared_dir_textinput                = ObjectProperty(None)
     settings                            = Settings()
 
 
@@ -335,6 +336,7 @@ class SettingsScreen(Screen):
         self.kill_orphans_checkbox.active               = self.settings.kill_orphans
         self.shutdown_on_exit_checkbox.active           = self.settings.shutdown_on_exit
         self.expose_ports_checkbox.active               = self.settings.expose_ports
+        self.shared_dir_textinput.text                  = self.settings.shared_dir if self.settings.shared_dir else ''
         
     def back(self):
         """save settings and go back"""
@@ -347,7 +349,8 @@ class SettingsScreen(Screen):
         self.settings.kill_orphans              = self.kill_orphans_checkbox.active
         self.settings.shutdown_on_exit          = self.shutdown_on_exit_checkbox.active
         self.settings.expose_ports              = self.expose_ports_checkbox.active
-
+        self.settings.shared_dir                = self.shared_dir_textinput.text if  self.shared_dir_textinput.text else False
+        
         # commit changes
         self.logger.info("save settings:" + str(self.settings))
         self.settings.save()
@@ -1053,6 +1056,23 @@ class Controller:
                 ))
                 port_bindings_func = getattr(self, container["port_bindings_func"])
                 port_bindings = port_bindings_func()
+                volumes = [
+                    "/sys/fs/cgroup",
+                ]
+                volume_map = {}
+                if self.settings.shared_dir:
+                    shared_dir_path = os.path.abspath(
+                        os.path.expanduser('~') + '/' + self.settings.shared_dir)
+                    if not os.path.exists(shared_dir_path):
+                        os.mkdir(shared_dir_path)
+                    volume_map = {
+                         os.path.abspath(shared_dir_path): {
+                            'bind': '/shared',
+                            'mode': 'rw',
+                        }
+                    }
+                    volumes.append('/shared')
+                  
                 proceed = True
                 try:
                     proceed = True
@@ -1061,11 +1081,11 @@ class Controller:
                       name=container["name"],
                       hostname=container["host"],
                       detach=True,
-                      volumes = [
-                          "/sys/fs/cgroup",
-                      ],
+                      volumes = volumes,
                       ports = port_bindings.keys(),
-                      host_config=self.cli.create_host_config(port_bindings=port_bindings)
+                      host_config=self.cli.create_host_config(
+                          port_bindings=port_bindings,
+                          binds=volume_map)
                     )
                 except docker.errors.APIError as e:
                     if e.response.status_code == 409:
@@ -1433,7 +1453,7 @@ class PeKitApp(App):
     """
     logger = logging.getLogger(__name__)
     settings = Settings()
-    __version__ = "v0.3.1"
+    __version__ = "v0.4.0"
     
     def check_update(self):
         """check for new release of the app"""
