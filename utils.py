@@ -29,7 +29,7 @@ class Utils:
             p = platform.system()
             if p == "Darwin":
                 # http://stackoverflow.com/questions/989349/running-a-command-in-a-new-mac-os-x-terminal-window
-                shell="osascript -e 'tell application \"Terminal\" to do script \"eval $(docker-machine env default) && {command}\"'"
+                shell="osascript -e 'tell application \"Terminal\" to do script \"{command}\"'"
             elif p == "Linux":
                 shell="xterm -e \"{command}\""
             else:

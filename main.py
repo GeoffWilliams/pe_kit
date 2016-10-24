@@ -17,6 +17,7 @@
 # setup logging before proceeding further
 import logging
 import tempfile
+import calendar
 logging.basicConfig(level=logging.DEBUG)
 f, logfile = tempfile.mkstemp()
 
@@ -72,78 +73,6 @@ from functools import partial
 import platform
 from settings import Settings
 from requests.auth import HTTPBasicAuth
-
-class DockerMachine():
-    """
-    DockerMachine
-
-    Control the default docker-machine instance (boot2docker)
-    """
-
-    logger = logging.getLogger(__name__)
-    
-    # is a start/stop operation in progress?
-    in_progress = False
-    platform = platform.system()
-
-    def __init__(self):
-        self.logger.info("adjusted path for /usr/local/bin")
-        os.environ['PATH'] = "/usr/local/bin/:" + os.environ['PATH']
-
-    def boot2docker(self):
-        """Everyone except Linux needs to use boot2docker/docker machine"""
-        return not self.platform == "Linux"
-
-    def status(self):
-        try:
-            if self.boot2docker():
-                self.logger.debug("boot2docker mode")
-                status = subprocess.check_output(["docker-machine", "status"]).strip()
-            else:
-                self.logger.debug("native mode")
-                # we're good as long as we get exit status 0.  Non zero ends in exception
-                subprocess.check_output(["docker", "version"])
-                status = "Running"
-        except subprocess.CalledProcessError as e:
-                status = "Error"
-        self.logger.info("docker (machine|daemon) status: " + status)
-        return status
-
-    def start(self):
-        # start the daemon if its not already running
-        started = False
-        try:
-            if not self.in_progress and self.status() != "Running":
-                if self.boot2docker():
-                    self.in_progress = True
-                    self.logger.debug("starting docker-machine...")
-                    out = subprocess.check_output(["docker-machine", "start"])
-                    self.logger.debug("...done starting docker-machine")
-                    self.in_progress = False
-
-                    if self.status() == "Running":
-                        self.logger.info("docker-machine started OK")
-                        started = True
-                else:
-                    self.logger.error("Docker daemon needs to be started by super-user")
-            else:
-                started = True
-
-            # setup the docker environment variables if we managed to start the daemon
-            if started and self.boot2docker():
-                out = subprocess.check_output(["docker-machine", "env"]).split("\n")
-                for line in out:
-                    if not line.startswith('#') and line != "":
-                        key = line.split("=")[0].replace('export ', '')
-                        value = line.split("=")[1].replace('"','')
-
-                        self.logger.info("export {key}={value}".format(key=key, value=value))
-                        os.environ[key] = value
-        except subprocess.CalledProcessError as e:
-            self.logger.error("Error getting running docker-machine command, exception follows")
-            self.logger.exception(e)
-
-        return started
 
 class ImagesScreen(Screen):
     """
@@ -855,50 +784,47 @@ class Controller:
     def docker_init(self):
         #  boot2docker specific hacks in use - see:  http://docker-py.readthedocs.org/en/latest/boot2docker/
 
-        self.dm = DockerMachine()
-        if self.dm.start():
-            if self.dm.boot2docker():
-                kwargs = kwargs_from_env()
-                if 'tls' not in kwargs:
-                    # daemon not setup/running.  Sleep here to allow the render thread to catch up if
-                    # we have just started otherwise there will be no app available to display the errors
-                    time.sleep(1)
-                    App.get_running_app().error("Docker could not be started, please check your system")
-                else:
-                    # docker ok
-                    kwargs['tls'].assert_hostname = False
+        #self.dm = DockerMachine()
+        #if self.dm.start():
+            #if self.dm.boot2docker():
+            #    kwargs = kwargs_from_env()
+            #    if 'tls' not in kwargs:
+            #        # daemon not setup/running.  Sleep here to allow the render thread to catch up if
+            #        # we have just started otherwise there will be no app available to display the errors
+            #        time.sleep(1)
+            #        App.get_running_app().error("Docker could not be started, please check your system")
+            #    else:
+            #        # docker ok
+            #        kwargs['tls'].assert_hostname = False
 
                     # save the boot2docker IP for use when we open browser windows
-                    self.docker_url = kwargs['base_url']
+            #        self.docker_url = kwargs['base_url']
 
-                self.cli = Client(**kwargs)
+             #   self.cli = Client(**kwargs)
 
-            else:
-                self.cli = Client(base_url='unix://var/run/docker.sock')
-                self.docker_url = "https://{bridge_ip}".format(bridge_ip=self.bridge_ip())
-            self.logger.info("Docker URL: " + self.docker_url)
- 
-            # stop any existing container (eg if we were killed)
-            self.cleanup_container(self.container["agent"])
-            self.cleanup_container(self.container["master"])
+            #else:
+        self.cli = Client(base_url='unix://var/run/docker.sock')
+        self.docker_url = "https://{bridge_ip}".format(bridge_ip=self.bridge_ip())
+        self.logger.info("Docker URL: " + self.docker_url)
 
-            # login to docker hub to get private image listings
-            if not self.hub_login():
-                self.app.error(
-                    "Unable to login to registry at {hub_address}, please check details".format(
-                        hub_address=self.settings.hub_address
-                    )
+        # stop any existing container (eg if we were killed)
+        self.cleanup_container(self.container["agent"])
+        self.cleanup_container(self.container["master"])
+
+        # login to docker hub to get private image listings
+        if not self.hub_login():
+            self.app.error(
+                "Unable to login to registry at {hub_address}, please check details".format(
+                    hub_address=self.settings.hub_address
                 )
+            )
 
-            # update downloadble and local images on the settings page
-            self.refresh_images()
-            
-            # proceed to startup
-            self.autostart_containers()
+        # update downloadble and local images on the settings page
+        self.refresh_images()
+        
+        # proceed to startup
+        self.autostart_containers()
 
-        else:
-            # no docker machine
-            self.app.error("Unable to start docker :*(")
 
     def hub_login(self):
         """
@@ -973,9 +899,9 @@ class Controller:
             try:
                 inspection = self.cli.inspect_container(container["name"])
                 if inspection["State"]["Status"] == "running":
-                    started = time.mktime(
+                    started = calendar.timegm(
                       dateutil.parser.parse(inspection["State"]["StartedAt"]).timetuple())
-                    now = time.mktime(datetime.datetime.utcnow().timetuple())
+                    now = calendar.timegm(datetime.datetime.utcnow().timetuple())
 
                     alive = now - started
             except requests.exceptions.ConnectionError:
@@ -1084,6 +1010,7 @@ class Controller:
                       volumes = volumes,
                       ports = port_bindings.keys(),
                       host_config=self.cli.create_host_config(
+                          privileged=True,
                           port_bindings=port_bindings,
                           binds=volume_map)
                     )
@@ -1101,12 +1028,7 @@ class Controller:
                 if proceed:
                     id = container["instance"].get('Id')
                     self.logger.info("starting container " + id)
-                    resp = self.cli.start(
-                      container=id,
-                      privileged=True,
-                      port_bindings=port_bindings
-
-                    )
+                    resp = self.cli.start(container=id)
                     self.logger.info(container["instance"])
                     self.munge_urls(container)
 
