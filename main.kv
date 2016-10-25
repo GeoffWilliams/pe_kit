@@ -49,7 +49,6 @@ ScreenManagement:
     terminal_button: terminal_button
     master_run_puppet_button: master_run_puppet_button.__self__
     clean_certs_button: clean_certs_button.__self__
-    dockerbuild_button: dockerbuild_button
 
     
     agent_provision_button: agent_provision_button.__self__
@@ -230,11 +229,6 @@ ScreenManagement:
                         busy: False
                         disabled: True
 
-                    # dockerbuild
-                    Button:
-                        id: dockerbuild_button
-                        text: 'Dockerbuild'
-                        on_release: root.dockerbuild()
         # spacer
         BoxLayout:
             size_hint: (0,0.05)

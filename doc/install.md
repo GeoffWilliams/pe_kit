@@ -5,11 +5,11 @@ You will need to download a PE Docker image (approx 3.5GB) and an agent image (a
 
 ## OSX
 1. Install [Docker for OSX](https://www.docker.com/products/docker-toolbox)
-2. You need a bigger boot2docker image to avoid running out of space, eg:  
-```shell
-docker-machine rm -f default
-docker-machine create -d virtualbox --virtualbox-cpu-count "2" --virtualbox-disk-size "50000" --virtualbox-memory "2048" default
-```
+2. You need use the docker icon in the menu bar at the top of the screen to reserve more resources for docker:
+  * At least 2 cores
+  * About 4 GB RAM
+  * Diskspace is used directly on the host now :)
+  * DO NOT use boot2docker - its no longer used
 3. Test docker is working by running `Docker Quickstart Terminal` from your applications group by using spotlight.  The first run will take a while as [boot2docker](http://boot2docker.io/) needs to be started
 4. Download the latest [PE_Kit installer](https://github.com/GeoffWilliams/pe_kit/releases)
 5. Run the `dmg` file you downloaded to install the application:

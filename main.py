@@ -308,7 +308,6 @@ class MainScreen(Screen):
     terminal_button                 = ObjectProperty(None)
     master_run_puppet_button        = ObjectProperty(None)
     clean_certs_button              = ObjectProperty(None)
-    dockerbuild_button              = ObjectProperty(None)
     
     # Agent actions
     agent_provision_button          = ObjectProperty(None)
@@ -371,15 +370,6 @@ class MainScreen(Screen):
         else :
             self.advanced_layout.add_widget(self.log_textinput)
 
-
-    def dockerbuild(self):
-        App.get_running_app().info("Launching dockerbuild - have fun :)")
-
-        def open_browser(dt):
-            webbrowser.open_new(self.controller.dockerbuild_url())
-
-        # call the named callback in 2 seconds (delay without freezing)
-        Clock.schedule_once(open_browser, 2)
 
     def run_puppet(self, button, location):
         def run_puppet_real(location, callback, button):
@@ -648,13 +638,6 @@ class Controller:
             url = None
         return url
     
-    def dockerbuild_url(self):
-        try:
-            url = self.container["master"]["urls"]["9000/tcp"]
-        except KeyError:
-            url = None
-        return url
-    
     def demo_url(self):
         return self.container["agent"]["urls"]["9090/tcp"]
     
@@ -664,8 +647,8 @@ class Controller:
         return "bash -c \"{cmd}\"".format(cmd=cmd)
     
     def fix_hosts_cmd(self):
-        return self.bash_cmd("grep {fqdn} /etc/hosts || echo '{docker_address} {fqdn} {short_name}' >> /etc/hosts".format(
-            docker_address=self.docker_address,
+        return self.bash_cmd("grep {fqdn} /etc/hosts || echo '{pm_ip} {fqdn} {short_name}' >> /etc/hosts".format(
+            pm_ip=self.pm_ip(),
             fqdn=self.container["master"]["host"],
             short_name=self.container["master"]["host"].split()[-1],
         ))
@@ -775,34 +758,22 @@ class Controller:
                     container=container["name"]))
 
     def bridge_ip(self):
-        """Get the IP address of the bridge if we are on linux"""
-        networks = self.cli.networks(names=["bridge"])
-        self.logger.debug(networks)
-        ip = networks[0]["IPAM"]["Config"][0]["Gateway"]
+        """Get the IP address of the bridge if we are on linux or localhost for mac"""
+        if platform.system() == "Darwin":
+          ip = 'localhost'
+        else:
+          networks = self.cli.networks(names=["bridge"])
+          self.logger.debug(networks)
+          ip = networks[0]["IPAM"]["Config"][0]["Gateway"]
+        return ip
+
+    def pm_ip(self):
+        """Get the IP address of the puppetmaster VM - only reachable from other docker containers"""
+        inspection = self.cli.inspect_container(Controller.container["master"]["name"])
+        ip = inspection['NetworkSettings']['Networks']['bridge']['IPAddress']
         return ip
 
     def docker_init(self):
-        #  boot2docker specific hacks in use - see:  http://docker-py.readthedocs.org/en/latest/boot2docker/
-
-        #self.dm = DockerMachine()
-        #if self.dm.start():
-            #if self.dm.boot2docker():
-            #    kwargs = kwargs_from_env()
-            #    if 'tls' not in kwargs:
-            #        # daemon not setup/running.  Sleep here to allow the render thread to catch up if
-            #        # we have just started otherwise there will be no app available to display the errors
-            #        time.sleep(1)
-            #        App.get_running_app().error("Docker could not be started, please check your system")
-            #    else:
-            #        # docker ok
-            #        kwargs['tls'].assert_hostname = False
-
-                    # save the boot2docker IP for use when we open browser windows
-            #        self.docker_url = kwargs['base_url']
-
-             #   self.cli = Client(**kwargs)
-
-            #else:
         self.cli = Client(base_url='unix://var/run/docker.sock')
         self.docker_url = "https://{bridge_ip}".format(bridge_ip=self.bridge_ip())
         self.logger.info("Docker URL: " + self.docker_url)
@@ -1375,7 +1346,7 @@ class PeKitApp(App):
     """
     logger = logging.getLogger(__name__)
     settings = Settings()
-    __version__ = "v0.4.0"
+    __version__ = "v0.5.0"
     
     def check_update(self):
         """check for new release of the app"""
@@ -1570,7 +1541,6 @@ class PeKitApp(App):
             screen.terminal_button: False if pe_status == "running" or pe_status == "loading" else True,
             screen.master_run_puppet_button: False if pe_status == "running" else True,
             screen.clean_certs_button: False if pe_status == "running" or pe_status == "loading" or agent_uptime else True,
-            screen.dockerbuild_button: False if pe_status == "running" or pe_status == "loading" else True,
             
             screen.agent_provision_button: False if pe_status == "running" and agent_uptime else True,
             screen.agent_run_puppet_button: False if pe_status == "running" and agent_uptime else True,
