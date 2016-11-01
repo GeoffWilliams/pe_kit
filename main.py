@@ -712,7 +712,7 @@ class Controller:
 
         if self.pe_url():
             try:
-                code = urllib2.urlopen(self.pe_url(), context=ctx, timeout=5).getcode()
+                code = urllib2.urlopen(self.pe_url(), context=ctx, timeout=0.5).getcode()
                 if code == 200:
                     self.logger.debug("puppet up and running :D")
                     status = "running"
@@ -1346,7 +1346,7 @@ class PeKitApp(App):
     """
     logger = logging.getLogger(__name__)
     settings = Settings()
-    __version__ = "v0.5.0"
+    __version__ = "v0.5.1"
     
     def check_update(self):
         """check for new release of the app"""
