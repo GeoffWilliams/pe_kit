@@ -7,6 +7,21 @@ PE_Kit is a cross-platform (Linux and OSX) tool for demonstrating Puppet Enterpr
 * [Help/Usage](doc/help.md)
 * [Developing](doc/develop.md)
 
+## Images
+
+* The images (blue crate) screen used to download images is currently broken as I'm not allowed to distribute public images with Puppet Enterprise installed and haven't figured out how to scrape the available tags from Docker Hub
+* These images exist privately.  Please register for [Docker Hub](https://hub.docker.com/) and [email](mailto:geoff.williams@puppet.com) me your Docker Hub username for access
+* For now, you must download images manually, like this:
+
+```shell
+# login to the docker hub using your username and password (only has to be done once)
+docker login
+
+# Download the images (~4GB data - can take a while...)
+docker pull geoffwilliams/pe_master_public_lowmem_r10k:2016.4.0-2
+docker pull geoffwilliams/pe_agent_demo:2016-11-1_0
+```
+
 
 ## FAQ
 Q: How did this get written?
@@ -78,4 +93,5 @@ docker-machine restart
 Longer answer:  You'r probably hitting this [bug](https://github.com/boot2docker/boot2docker/issues/776) in boot2docker where changing wifi/networks on the main laptop doesn't change your DNS settings in `/etc/resolv.conf` within the boot2docker VM.  Alternatively you may have altered the DNS server to use in `/var/lib/boot2docker/profile` inside the boot2docker machine.  If so, make sure any DNS servers specified are reachable.  That said, the agent and master are supposed to work without any internet connectivity, if you find this is not the case, please open a bug against PE_Kit.
 
 Q: I get the error `SEC_ERROR_REUSED_ISSUER_AND_SERIAL` on firefox and I can't get past it.
+
 A: Find and delete the file `cert8.db` in your firefox profile, then fully quit and restart Firefox.  There doesn't seem to be another way
