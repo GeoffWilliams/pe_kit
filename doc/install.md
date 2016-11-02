@@ -15,7 +15,10 @@ You will need to download a PE Docker image (approx 3.5GB) and an agent image (a
     1. Drag and drop the `pe_kit` icon into `Applications`
     2. Double click the `Exec/Make Symlinks` icon (top middle)
 
-* Note:  If you previously installed [Docker Toolbox for OSX](https://www.docker.com/products/docker-toolbox), you should remove your previous boot2docker VM to avoid confusion:
+### OSX Notes
+* PE_Kit v0.5.0 and above only support Docker for Mac, NOT Docker Toolbox.  If you need to use Docker Toolbox you must use an earlier version
+* If you previously installed [Docker Toolbox for OSX](https://www.docker.com/products/docker-toolbox), you should remove your previous boot2docker VM to avoid confusion:
+
 
 ```shell
 docker-machine stop
