@@ -731,6 +731,12 @@ class Controller:
                   message = e.reason,
                 ))
                 status = "loading"
+            except ssl.SSLError as e:
+                self.logger.debug("puppet SSL timeout at {pe_url}:  {message}".format(
+                  pe_url = self.pe_url(),
+                  message = str(e),
+                ))
+                status = "loading"
         else:
             status = "error"
 
