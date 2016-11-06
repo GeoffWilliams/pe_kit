@@ -763,16 +763,6 @@ class Controller:
                 "container {container} not running, OK to start new one".format(
                     container=container["name"]))
 
-    def bridge_ip(self):
-        """Get the IP address of the bridge if we are on linux or localhost for mac"""
-        #if platform.system() == "Darwin":
-        ip = 'localhost'
-        #else:
-          #networks = self.cli.networks(names=["bridge"])
-          #self.logger.debug(networks)
-          #ip = networks[0]["IPAM"]["Config"][0]["Gateway"]
-        return ip
-
     def pm_ip(self):
         """Get the IP address of the puppetmaster VM - only reachable from other docker containers"""
         inspection = self.cli.inspect_container(Controller.container["master"]["name"])
@@ -781,7 +771,7 @@ class Controller:
 
     def docker_init(self):
         self.cli = Client(base_url='unix://var/run/docker.sock')
-        self.docker_url = "https://{bridge_ip}".format(bridge_ip=self.bridge_ip())
+        self.docker_url = "https://{bridge_ip}".format(bridge_ip='localhost')
         self.logger.info("Docker URL: " + self.docker_url)
 
         # stop any existing container (eg if we were killed)
@@ -1168,9 +1158,6 @@ class Controller:
                 self.logger.error("failed to reach docker hub - no internet?")
 	  
         else:
-            time.sleep(4) # seems to be a race condition here fixable by a small wait
-                          # FIXME probably its to do with painting the error message from a thread
-                          # probably need to do something like this... http://stackoverflow.com/a/18990710
             App.get_running_app().error("Please enter your Docker Hub username and password on the settings screen")
         if len(downloadable_images):
             newest_image = downloadable_images[0]
@@ -1304,7 +1291,10 @@ class PeKitApp(App):
     """
     logger = logging.getLogger(__name__)
     settings = Settings()
-    __version__ = "v0.5.1"
+    __version__ = "v0.5.3"
+    error_messages = []
+    info_messages = []
+    
 
     def check_update(self):
         """check for new release of the app"""
@@ -1350,6 +1340,7 @@ class PeKitApp(App):
 
         # monitor the docker daemon and container
         Clock.schedule_interval(self.daemon_monitor, 1)
+        Clock.schedule_interval(self.message_monitor, 1)
 
         # disclaimer message
         self.info(
@@ -1403,8 +1394,8 @@ class PeKitApp(App):
 
     def error(self, message):
         self.logger.error(message)
-        return self.popup(title='Error!', message=message)
-
+        self.error_messages.append(message)
+        
     def popup(self, title, message, question=False, yes_callback=None, no_callback=None):
         def close(button):
             text = button.text
@@ -1446,8 +1437,9 @@ class PeKitApp(App):
 
     def info(self, message):
         self.logger.info(message)
-        return self.popup(title='Information', message=message)
-
+        self.info_messages.append(message)
+        
+        
     def container_monitor(self, container, button, label):
         uptime = container["status"]
         if uptime:
@@ -1460,6 +1452,17 @@ class PeKitApp(App):
         label.text = status
 
         return uptime
+    
+    def message_monitor(self, x):
+        """
+        Called every second and displays info or warning messages from the main thread to prevent painting errors
+        no need to iterate the whole array here since we get called every second anyway...
+        """
+        if len(self.error_messages):
+            self.popup(title='Error!', message=self.error_messages.pop(0))
+        if len(self.info_messages):
+            self.popup(title='Information', message=self.info_messages.pop(0))
+        
 
     def daemon_monitor(self, x):
         screen = self.root.get_screen("main")
