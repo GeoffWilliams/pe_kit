@@ -28,10 +28,10 @@ ScreenManagement:
     ImagesScreen:
     MenuScreen:
     AboutScreen:
-    
+
 <MainScreen>:
     name: 'main'
-    
+
     # prevent errors due to weak reference being GC'ed
     # see https://kivy.org/docs/guide/lang.html
     advanced_layout: advanced_layout.__self__
@@ -50,7 +50,7 @@ ScreenManagement:
     master_run_puppet_button: master_run_puppet_button.__self__
     clean_certs_button: clean_certs_button.__self__
 
-    
+
     agent_provision_button: agent_provision_button.__self__
     agent_run_puppet_button: agent_run_puppet_button.__self__
     agent_terminal_button: agent_terminal_button
@@ -59,28 +59,28 @@ ScreenManagement:
     BoxLayout:
         orientation: 'vertical'
         padding: 20
-        
+
         #
         # Top bar menu icons
         #
         BoxLayout:
             size_hint: (1, 0.2)
-            
+
             # PE Kit banner
             AnchorLayout:
-                size_hint: (0.8, 1) 
+                size_hint: (0.8, 1)
                 Label:
                     text: 'PE_Kit'
                     font_size: '40sp'
-                    
+
             # settings
             Button:
                 size_hint: (None, None)
                 size: (50, 50)
                 border: (0, 0, 0, 0)
                 on_release: app.root.current = 'images'
-                background_normal: 'icons/images.png'                      
-                      
+                background_normal: 'icons/images.png'
+
             # settings
             Button:
                 size_hint: (None, None)
@@ -88,19 +88,19 @@ ScreenManagement:
                 border: (0, 0, 0, 0)
                 on_release: app.root.current = 'settings'
                 background_normal: 'icons/settings.png'
-                
+
             # menu
             Button:
                 size_hint: (None, None)
                 size: (50, 50)
                 border: (0, 0, 0, 0)
                 on_release: app.root.current = 'menu'
-                background_normal: 'icons/menu.png'          
-                
+                background_normal: 'icons/menu.png'
+
         # spacer
         BoxLayout:
             size_hint: (0,0.05)
-            
+
         #
         # master GUI
         #
@@ -113,7 +113,7 @@ ScreenManagement:
                 Color:
                     rgba: 1, .1, .1, .9
                 Line:
-                    rectangle: self.x+3,self.y+3,self.width-3,self.height-3   
+                    rectangle: self.x+3,self.y+3,self.width-3,self.height-3
                     width: 4
             AnchorLayout:
                 anchor_x: 'left'
@@ -129,7 +129,7 @@ ScreenManagement:
                     text: 'Puppet Enterprise Console'
                     on_press: root.pe_console()
                     disabled: True
-                    
+
         # spacer
         BoxLayout:
             size_hint: (0,0.05)
@@ -145,7 +145,7 @@ ScreenManagement:
                 Color:
                     rgba: .1, .1, 1, .9
                 Line:
-                    rectangle: self.x+3,self.y+3,self.width-3,self.height-3   
+                    rectangle: self.x+3,self.y+3,self.width-3,self.height-3
                     width: 4
             AnchorLayout:
                 anchor_x: 'left'
@@ -153,7 +153,7 @@ ScreenManagement:
                 padding: 20
                 Label:
                     text: 'Agent'
-            
+
             BoxLayout:
                 Button:
                     id: agent_provision_button
@@ -185,7 +185,7 @@ ScreenManagement:
 
         #
         # Advanced
-        #            
+        #
         BoxLayout:
             orientation: 'vertical'
             size_hint: (1, 0.2)
@@ -213,13 +213,13 @@ ScreenManagement:
                         id: terminal_button
                         text: 'Master Terminal'
                         on_press: root.pe_terminal()
-                    
+
                     Button:
                         id: agent_terminal_button
                         text: 'Agent Terminal'
                         on_release: root.agent_terminal()
                         disabled: True
-                        
+
                     Button:
                         id: clean_certs_button
                         text:  self.free_text
@@ -296,16 +296,16 @@ ScreenManagement:
                 border: (0, 0, 0, 0)
                 on_release: root.docker_status_info()
 
-            
+
 <SettingsScreen>:
     name: 'settings'
 
     # widget/class variable mapping
     hub_username_textinput: hub_username_textinput
     hub_password_textinput: hub_password_textinput
-    #hub_address_textinput: hub_address_textinput
-    
-    
+    hub_address_textinput: hub_address_textinput
+
+
     use_latest_images_checkbox: use_latest_images_checkbox
     start_automatically_checkbox: start_automatically_checkbox
     provision_automatically_label: provision_automatically_label
@@ -322,8 +322,8 @@ ScreenManagement:
 
         #
         # Checkboxes/Settings file
-        # 
-        
+        #
+
         # banner
         Label:
             text: 'Settings'
@@ -336,44 +336,44 @@ ScreenManagement:
 
         GridLayout:
             cols: 2
-            
+
             #
             # Hub settings
             #
-            
+
             # Hub username
             Label:
                 text: 'Docker Hub Username'
             TextInput
                 id: hub_username_textinput
-                
+
             # Hub password
             Label:
                 text: 'Docker Hub Password'
             TextInput
                 id: hub_password_textinput
                 password: True
-                
+
             # Regisitry address (private registry support)
-            #Label:
-            #    text: 'Registry'
-            #TextInput
-            #    id: hub_address_textinput
-                   
-            
+            Label:
+                text: 'Registry'
+            TextInput
+                id: hub_address_textinput
+
+
             # latest image
             CheckBox:
                 id: use_latest_images_checkbox
             Label:
                 text: 'Use latest images'
-        
+
             # start automatically
             CheckBox:
                 id: start_automatically_checkbox
                 on_state: provision_automatically_checkbox.disabled = not self.active ; provision_automatically_label.disabled = not self.active
             Label:
                 text: 'Start containers automatically'
-            
+
             # provision automatically
             CheckBox:
                 id: provision_automatically_checkbox
@@ -382,25 +382,25 @@ ScreenManagement:
                 id: provision_automatically_label
                 text: 'Provision agent automatically'
                 disabled: True
-            
+
             # kill orphans
             CheckBox:
                 id: kill_orphans_checkbox
             Label:
                 text: 'Kill orphaned containers on startup'
-                
+
             # Shutdown on exit
             CheckBox:
                 id: shutdown_on_exit_checkbox
             Label:
                 text: 'Shutdown containers on on exit'
-           
+
             # Expose puppet and mcollective ports through docker
             CheckBox:
                 id: expose_ports_checkbox
             Label:
                 text: 'Expose Puppet and MCollective ports'
-        
+
             # shared directory
             Label:
                 text: 'Shared directory inside homedir'
@@ -422,7 +422,7 @@ ScreenManagement:
     BoxLayout:
         orientation: 'vertical'
         size_hint: (1, 1)
-        
+
         #
         # master image management
         #
@@ -431,7 +431,7 @@ ScreenManagement:
             font_size: '40sp'
             size_hint: (1, 0.2)
 
-        # Image Management     
+        # Image Management
         ScrollView:
             size: self.size
             scroll_type: ['content','bars']
@@ -454,15 +454,15 @@ ScreenManagement:
         ScrollView:
             size: self.size
             scroll_type: ['content','bars']
-            bar_width: '10dp'            
-            # Agent Image Management     
+            bar_width: '10dp'
+            # Agent Image Management
             GridLayout:
                 id: agent_image_management_layout
                 size_hint_y: None
                 cols: 3
                 cols_minimum: { 0: dp(700), 1: dp(25), 2: dp(25)}
                 row_default_height: dp(25)
-                                           
+
         Button:
             on_release: root.back()
             text: 'Back'
@@ -471,7 +471,7 @@ ScreenManagement:
 
 <MenuScreen>:
     name: 'menu'
-    
+
     BoxLayout:
         orientation: 'vertical'
         padding: 20
@@ -483,22 +483,22 @@ ScreenManagement:
         Button:
             text: 'Help'
             on_release: root.help()
-            
+
         Button:
             text: 'Report bug'
             on_release: root.report_bug()
-            
+
         Button:
             text: 'Copy log to clipboard'
             on_release: root.copy_log_clipboard()
-            
+
         Button:
             text: 'Back'
             on_release: app.root.current = 'main'
-            
+
 <AboutScreen>:
     name: 'about'
-    
+
     license_label: license_label
     AnchorLayout:
         BoxLayout:

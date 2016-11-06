@@ -1,3 +1,5 @@
+*.kdev*
+.kdev*
 *.pyc
 bin
 .buildozer

@@ -73,33 +73,34 @@ from functools import partial
 import platform
 from settings import Settings
 from requests.auth import HTTPBasicAuth
+import requests
 
 class ImagesScreen(Screen):
     """
     Images Screen
-    
+
     Screen for managing images
     """
-    
+
     logger = logging.getLogger(__name__)
     master_image_management_layout      = ObjectProperty(None)
     agent_image_management_layout       = ObjectProperty(None)
     settings                            = Settings()
-    
+
     def __init__(self, **kwargs):
         super(ImagesScreen, self).__init__(**kwargs)
         self.controller = Controller()
-        
+
     def on_start(self):
         # periodically refresh the image managment grid if we need to
         Clock.schedule_interval(self.update_image_managment, 1)
-        
+
         # scrollable image list for images (agent and master)
         self.master_image_management_layout.bind(
             minimum_height= self.master_image_management_layout.setter('height'))
         self.agent_image_management_layout.bind(
             minimum_height=self.agent_image_management_layout.setter('height'))
-        
+
     def on_enter(self):
         self.logger.debug("update image screen")
         self.update_image_managment(force_refresh=True)
@@ -112,7 +113,7 @@ class ImagesScreen(Screen):
         self.logger.info("save settings:" + str(self.settings))
         self.settings.save()
         App.get_running_app().root.current = 'main'
-        
+
     def get_image_button(self, status):
         if status == "downloadable":
             icon = "icons/available.png"
@@ -163,11 +164,11 @@ class ImagesScreen(Screen):
                 App.get_running_app().question(
                     "really delete image {image_name}?".format(
                         image_name=button.image_name,
-                    ), 
+                    ),
                     yes_callback=delete_image_callback
                 )
-                
-                
+
+
         layout.clear_widgets()
         for image in images:
             name_label = Label(text=image["name"])
@@ -198,31 +199,31 @@ class ImagesScreen(Screen):
 
             layout.add_widget(name_label)
             layout.add_widget(status_button)
-            layout.add_widget(selected_button)        
+            layout.add_widget(selected_button)
 
     def update_image_managment(self, x=None, force_refresh=False):
         """refresh the lists of images on the settings page.  The .kv file forces"""
         if self.controller.images_refreshed or force_refresh:
-          
+
             # refresh selected agent in settings once GUI is ready
             if self.settings.use_latest_image:
                 self.settings.master_selected_image = App.get_running_app().get_master_selected_image()
                 self.settings.agent_selected_image = App.get_running_app().get_agent_selected_image()
-            
+
             self.image_management_ui(
-                self.master_image_management_layout, 
-                self.controller.container["master"]["images"], 
+                self.master_image_management_layout,
+                self.controller.container["master"]["images"],
                 self.settings.master_selected_image,
                 "master_selected_image"
             )
             self.image_management_ui(
-                self.agent_image_management_layout, 
-                self.controller.container["agent"]["images"], 
+                self.agent_image_management_layout,
+                self.controller.container["agent"]["images"],
                 self.settings.agent_selected_image,
                 "agent_selected_image"
             )
             self.controller.images_refreshed = False
-            
+
             if self.controller.inital_setup_complete:
                 self.logger.debug("marking GUI ready")
                 self.controller.gui_ready = True
@@ -238,7 +239,6 @@ class SettingsScreen(Screen):
     logger = logging.getLogger(__name__)
     hub_address_textinput               = ObjectProperty(None)
     hub_password_textinput              = ObjectProperty(None)
-    # hub_address_textinput               = ObjectProperty(None)
     use_latest_images_checkbox          = ObjectProperty(None)
     start_automatically_checkbox        = ObjectProperty(None)
     provision_automatically_checkbox    = ObjectProperty(None)
@@ -258,7 +258,7 @@ class SettingsScreen(Screen):
     def on_start(self):
         self.hub_username_textinput.text                = self.settings.hub_username
         self.hub_password_textinput.text                = self.settings.hub_password
-        # self.hub_address_textinput.text                 = self.settings.hub_address
+        self.hub_address_textinput.text                 = self.settings.hub_address
         self.use_latest_images_checkbox.active          = self.settings.use_latest_image
         self.start_automatically_checkbox.active        = self.settings.start_automatically
         self.provision_automatically_checkbox.active    = self.settings.provision_automatically
@@ -266,12 +266,12 @@ class SettingsScreen(Screen):
         self.shutdown_on_exit_checkbox.active           = self.settings.shutdown_on_exit
         self.expose_ports_checkbox.active               = self.settings.expose_ports
         self.shared_dir_textinput.text                  = self.settings.shared_dir if self.settings.shared_dir else ''
-        
+
     def back(self):
         """save settings and go back"""
         self.settings.hub_username              = self.hub_username_textinput.text
         self.settings.hub_password              = self.hub_password_textinput.text
-        # self.settings.hub_address               = self.hub_address_textinput.text
+        self.settings.hub_address               = self.hub_address_textinput.text
         self.settings.use_latest_image          = self.use_latest_images_checkbox.active
         self.settings.start_automatically       = self.start_automatically_checkbox.active
         self.settings.provision_automatically   = self.provision_automatically_checkbox.active
@@ -279,11 +279,11 @@ class SettingsScreen(Screen):
         self.settings.shutdown_on_exit          = self.shutdown_on_exit_checkbox.active
         self.settings.expose_ports              = self.expose_ports_checkbox.active
         self.settings.shared_dir                = self.shared_dir_textinput.text if  self.shared_dir_textinput.text else False
-        
+
         # commit changes
         self.logger.info("save settings:" + str(self.settings))
         self.settings.save()
-        
+
         App.get_running_app().root.current = 'main'
 
 
@@ -308,7 +308,7 @@ class MainScreen(Screen):
     terminal_button                 = ObjectProperty(None)
     master_run_puppet_button        = ObjectProperty(None)
     clean_certs_button              = ObjectProperty(None)
-    
+
     # Agent actions
     agent_provision_button          = ObjectProperty(None)
     agent_run_puppet_button         = ObjectProperty(None)
@@ -335,7 +335,7 @@ class MainScreen(Screen):
                 message += "You can install agent by running:" + textwrap.dedent(
                 """
                 {command}
-                
+
                 You must add the following to your /etc/hosts file before running:
                 {docker_address} pe-puppet.localdomain pe-puppet
                 """.format(command=command, docker_address=self.controller.docker_address))
@@ -390,7 +390,7 @@ class MainScreen(Screen):
             else:
                 error = True
                 message = "Puppet run on {location} OK (but resource errors)"
-                
+
             app = App.get_running_app()
             message = message.format(location=location)
             if error:
@@ -398,7 +398,7 @@ class MainScreen(Screen):
             else:
                 app.info(message)
             callback(button)
-                
+
         self.busy_button(button)
         threading.Thread(
             target=run_puppet_real, args=[location, self.free_button, button]
@@ -420,13 +420,13 @@ class MainScreen(Screen):
 
         # call the named callback in 2 seconds (delay without freezing)
         Clock.schedule_once(open_browser, 2)
-     
+
     def pe_terminal(self):
         self.terminal(Controller.container["master"]["name"])
-        
+
     def agent_terminal(self):
         self.terminal(Controller.container["agent"]["name"])
-    
+
     def terminal(self, container_name):
         App.get_running_app().info("Launching terminal, please lookout for a new window")
 
@@ -437,17 +437,17 @@ class MainScreen(Screen):
 
         # call the named callback in 2 seconds (delay without freezing)
         Clock.schedule_once(terminal, 2)
-        
+
     def busy_button(self, button):
         button.disabled=True
         button.busy=True
         button.text=button.busy_text
-        
+
     def free_button(self, button):
         button.disabled=False
         button.busy=False
         button.text=button.free_text
-        
+
     def agent_provision(self):
         def provision(callback, button):
             exit_status = self.controller.agent_provision()
@@ -460,21 +460,21 @@ class MainScreen(Screen):
             elif exit_status == 1:
                 message="Agent provisioning FAILED, often a temporary failure, please try again later"
             else:
-                message="Agent provisioning FAILED, check logs for more info"    
-            
+                message="Agent provisioning FAILED, check logs for more info"
+
             app = App.get_running_app()
             if error:
                 app.error(message)
             else:
                 app.info(message)
-            callback(button)    
+            callback(button)
         self.busy_button(self.agent_provision_button)
         threading.Thread(target=provision, args=[self.free_button, self.agent_provision_button]).start()
 
-        
+
     def agent_demo(self):
         webbrowser.open_new(self.controller.demo_url())
-        
+
     def clean_certs(self):
         def clean():
             master_cleaned, agent_cleaned = self.controller.clean_certs()
@@ -489,26 +489,26 @@ class MainScreen(Screen):
 
             App.get_running_app().info("\n".join(message))
             self.free_button(self.clean_certs_button)
-            
+
         self.busy_button(self.clean_certs_button)
         threading.Thread(target=clean).start()
 
 
-class MenuScreen(Screen):        
+class MenuScreen(Screen):
     """
     MenuScreen
-    
+
     Simple menu of helpful links
     """
     settings = Settings()
-    
+
     def __init__(self, **kwargs):
         super(MenuScreen, self).__init__(**kwargs)
-       
+
     def help(self):
         webbrowser.open_new("https://github.com/{gh_repo}/blob/master/doc/help.md#pe_kit-help".format(
             gh_repo=self.settings.gh_repo))
-    
+
     def report_bug(self):
         def report_bug(x):
             webbrowser.open_new(
@@ -521,33 +521,33 @@ class MenuScreen(Screen):
         log = open(logfile).read()
         Clipboard.copy(log)
         App.get_running_app().info("Logfile copied to clipboard")
-        
+
 class AboutScreen(Screen):
     """The about screen/dialogue"""
     license_label = ObjectProperty(None)
-        
+
     def __init__(self, **kwargs):
         super(AboutScreen, self).__init__(**kwargs)
-        
+
     def on_start(self):
         self.license_label.text = open(
             os.path.dirname(os.path.abspath(__file__)) + os.path.sep + "license_header.txt"
         ).read()
 
-        
-    
+
+
 # borg class, see http://code.activestate.com/recipes/66531-singleton-we-dont-need-no-stinkin-singleton-the-bo/
 class Controller:
     """
     Controller
-    
+
     Separate off the control functions to remove dependency on kivy
     """
     __shared_state = {}
 
     logger = logging.getLogger(__name__)
     settings = Settings()
-    
+
     # container names, image info and urls for each image.
     #   * name - the name of the started container in docker
     #   * host - the hostname for the started container
@@ -557,7 +557,7 @@ class Controller:
     #   * instance - object representing the running container, if started
     #   * urls - URLs accessible in the started container
     #   * status - current status of the container, updated every second by a thread
-    #   * port_bindings_func - name of function to run to obtain port mappings 
+    #   * port_bindings_func - name of function to run to obtain port mappings
     #     to preserve liveness of settings
     #   * ports - dict of docker to local ports we will use to build URLs in the GUI
     container = {
@@ -572,7 +572,7 @@ class Controller:
             "status": False,
             "port_bindings_func": "master_port_bindings",
             "ports": {
-                "443/tcp": None, 
+                "443/tcp": None,
                 "9000/tcp": None,
             }
         },
@@ -594,12 +594,12 @@ class Controller:
 
     # Puppet.com suggested curl installation command (swallows exit status)
     CURL_COMMAND="curl -k https://pe-puppet.localdomain:8140/packages/current/install.bash | bash"
-    
+
     # Save to intermediate file to prevent streaming errors and preserve exit status
     CURL_COMMAND_SAFE="curl -k https://pe-puppet.localdomain:8140/packages/current/install.bash > /tmp/pe_installer && bash < /tmp/pe_installer"
-    
+
     cli = None
-    
+
     docker_url = None
     docker_address = "unknown"
     app = None
@@ -617,47 +617,47 @@ class Controller:
     # because since the update takes place in its own thread, we can't let
     # it interact with the GUI thread or we'll get segfaults
     images_refreshed = False
-    
+
     # Flag to indicate inital image list and setup is complete
     inital_setup_complete = False
-    
+
     # Flag to indicate the GUI is live an selections in the settings
     # object have been parsed in
     gui_ready = False
-    
+
     # Docker hub token - store to access multiple repos
     #token = None
 
     def __init__(self):
         self.__dict__ = self.__shared_state
-        
+
     def pe_url(self):
         try:
             url = self.container["master"]["urls"]["443/tcp"]
         except KeyError:
             url = None
         return url
-    
+
     def demo_url(self):
         return self.container["agent"]["urls"]["9090/tcp"]
-    
+
     def bash_cmd(self, cmd):
         """docker exec commands must be wrapped in bash -c or they fail due
         to not being run from the shell"""
         return "bash -c \"{cmd}\"".format(cmd=cmd)
-    
+
     def fix_hosts_cmd(self):
         return self.bash_cmd("grep {fqdn} /etc/hosts || echo '{pm_ip} {fqdn} {short_name}' >> /etc/hosts".format(
             pm_ip=self.pm_ip(),
             fqdn=self.container["master"]["host"],
             short_name=self.container["master"]["host"].split()[-1],
         ))
-    
+
     def curl_command(self):
         return self.bash_cmd(self.CURL_COMMAND_SAFE)
-        
+
     def delete_image(self, image_name):
-        self.cli.remove_image(image_name)        
+        self.cli.remove_image(image_name)
         self.refresh_images()
 
     def download_image(self, image_name):
@@ -679,11 +679,11 @@ class Controller:
                     self.logger.debug(line)
                 else:
                     raise Exception("Aborting download because quit/cancel!")
-            
+
             # mark as completed
             self.stop_download(image_name)
             self.refresh_images()
-        
+
     def stop_download(self, image_name):
         """abort a download by removing it from the list of active downloads"""
         if image_name in self.active_downloads:
@@ -756,7 +756,7 @@ class Controller:
                     if container["instance"]["State"]["Running"]:
                         self.munge_urls(container)
                     # else container exists but has not yet been started, leave it
-                    # alone until its started by the start_automatically flag or 
+                    # alone until its started by the start_automatically flag or
                     # a user manually pressing the play button
         except docker.errors.NotFound:
             self.logger.info(
@@ -765,12 +765,12 @@ class Controller:
 
     def bridge_ip(self):
         """Get the IP address of the bridge if we are on linux or localhost for mac"""
-        if platform.system() == "Darwin":
-          ip = 'localhost'
-        else:
-          networks = self.cli.networks(names=["bridge"])
-          self.logger.debug(networks)
-          ip = networks[0]["IPAM"]["Config"][0]["Gateway"]
+        #if platform.system() == "Darwin":
+        ip = 'localhost'
+        #else:
+          #networks = self.cli.networks(names=["bridge"])
+          #self.logger.debug(networks)
+          #ip = networks[0]["IPAM"]["Config"][0]["Gateway"]
         return ip
 
     def pm_ip(self):
@@ -798,7 +798,7 @@ class Controller:
 
         # update downloadble and local images on the settings page
         self.refresh_images()
-        
+
         # proceed to startup
         self.autostart_containers()
 
@@ -807,7 +807,7 @@ class Controller:
         """
         Login to docker hub.  Return true on success otherwise false.
         This allows the CLI object to do stuff with the private hub images.  We still
-        need to do our own separate authentication for docker hub API calls to get a 
+        need to do our own separate authentication for docker hub API calls to get a
         list of image tags since this isn't possible using the client
         """
         status = False
@@ -815,9 +815,9 @@ class Controller:
             self.logger.info("Logging in to docker hub...(WARNING - this takes a while to fail)")
             try:
                 login_result = self.cli.login(
-                    self.settings.hub_username, 
-                    password=self.settings.hub_password, 
-                    registry=self.settings.hub_address,
+                    self.settings.hub_username,
+                    password=self.settings.hub_password,
+                    registry='https://index.docker.io/v1', #self.settings.hub_address,
                 )
                 self.logger.debug("LOGIN result " + str(login_result))
                 if login_result and login_result["Status"] == 'Login Succeeded':
@@ -924,29 +924,29 @@ class Controller:
             22: None,
             443: None,
             8140: 8140 if self.settings.expose_ports else None,
-            8142: 8142 if self.settings.expose_ports else None, 
+            8142: 8142 if self.settings.expose_ports else None,
             9000: None,
             61613: 61613 if self.settings.expose_ports else None,
             61616: None,
         }
-    
+
     def agent_port_bindings(self):
-        return { 
+        return {
             9090: None,
         }
 
     def start_agent(self):
-        """ start agent container """        
+        """ start agent container """
         return self.start_container(
-            self.container["agent"], 
+            self.container["agent"],
             self.settings.agent_selected_image)
-    
+
     def start_pe(self):
         """ Start PE """
         return self.start_container(
-            self.container["master"], 
+            self.container["master"],
             self.settings.master_selected_image)
-        
+
     def start_container(self, container, image_name):
         status = False
         if self.container_alive(container):
@@ -975,7 +975,7 @@ class Controller:
                         }
                     }
                     volumes.append('/shared')
-                  
+
                 proceed = True
                 try:
                     proceed = True
@@ -1023,23 +1023,23 @@ class Controller:
         pp.pprint(container_info)
 
         parsed = urlparse(self.docker_url)
-        self.docker_address = parsed.netloc.split(":")[0]        
-        
+        self.docker_address = parsed.netloc.split(":")[0]
+
         for port in container["ports"]:
             scheme = "https" if port == "443/tcp" else "http"
-  
+
             container["ports"][port] = container_info["NetworkSettings"]["Ports"][port][0]["HostPort"]
             container["urls"][port] = parsed._replace(
                 scheme=scheme,
                 netloc="{}:{}".format(parsed.hostname, container["ports"][port])
-            ).geturl()        
+            ).geturl()
         self.logger.info("port mapping: {ports}".format(ports=container["ports"]))
-        
+
     def refresh_images(self):
         """Update the lists of downloadable and locally available images,
         then de-duplicate the list and produce a map combining both lists
         so that the image managment grid can be built"""
-        
+
         self.update_available = False
         for container_key in ["agent", "master"]:
             container = self.container[container_key]
@@ -1052,13 +1052,13 @@ class Controller:
 
             container["images"] = self.combine_image_list(container["local_images"], downloadable_images)
         self.logger.debug("marking initial_setup_complete")
-        
+
         # flag to indicate we have been setup at least ONCE after startup
         self.inital_setup_complete = True
-        
+
         # flag to indicate the GUI should be refreshed (gets set false after repaint)
         self.images_refreshed = True
-          
+
     def combine_image_list(self, local_images, downloadable_images):
         # now combine into an array of hashes
         images = []
@@ -1076,7 +1076,7 @@ class Controller:
               "selected": False
             })
         return images
-        
+
 
     def update_local_images(self, container):
         """
@@ -1093,17 +1093,17 @@ class Controller:
                 if image_name.startswith(container["image_name"]):
                     local_images.append(image_name)
             local_images.sort(reverse=True)
-            
+
             # move any 3.8x images to the end of the list otherwise they
             # will have been sorted to the start of the list
             i = 0
             while i < len(local_images):
                 # move any images not starting with :201x to the end of the list
-                # should be good for 4 years... 
+                # should be good for 4 years...
                 if ":201" not in local_images[0]:
                     local_images.append(local_images.pop(0))
                 i += 1
-            
+
         if len(local_images):
             newest_image = local_images[0]
         else:
@@ -1114,77 +1114,30 @@ class Controller:
         ))
         return local_images, newest_image
 
-    
-    # How to do authentication to/from the docker API borrowed from 
-    # http://www.cakesolutions.net/teamblogs/docker-registry-api-calls-as-an-authenticated-user
-    #
-    # Can't for the life of me figure out how to use the V2 api to do this on the public 
-    # forge against a private image.  Giving up for now, keeping code since might be useful...
-    #
-#    def hub_token(self, user, password, service, scope, realm):
-#        if self.token:
-#            token = self.token
-#        else:
-#            data = {
-#                "scope": "repository:" + scope, 
-#                "service":  service, 
-#                "account": user, 
-#                "client_id": "https://github.com/GeoffWilliams/pe_kit"
-#            }
-#            self.logger.debug("Auth_data: " + str(data))
-#            r = requests.get(
-#                "https://auth.docker.io/token", 
-#                auth=HTTPBasicAuth(user, password), 
-#                data=data, 
-#                timeout=5
-#            )
-#
-#            token=json.loads(str(r.content))["token"]
-#            self.token = token
-#
-#        self.logger.debug("Obtained token: " + token)
-#        return token
-#    
-#    def hub_request(self, api_url, token=None):
-#        if token:
-#            headers = {'Authorization':'Bearer ' + token}
-#        else:
-#            headers = {}
-#        response = requests.get(api_url, headers=headers, timeout=5)
-#        return response
-#    
-#    def hub_api(self, api_url, user, password, service, scope, realm):
-#        # first make the request unuathenticated
-#        self.logger.debug("making initial request for: " + api_url)
-#        response = self.hub_request(api_url)
-#        data = False
-#        if response.status_code != 200:
-#            self.logger.debug("non-successful status for: " + api_url)
-#            print(">>>>>>>>>>>>>>" + str(response.content))
-#            #{"errors":[{"code":"UNAUTHORIZED","message":"authentication required","detail":[{"Type":"repository","Name":"geoffwilliams/pe_master_public_lowmem_r10k_dockerbuild","Action":"pull"}]}]}
-#            if 'Www-Authenticate' in response.headers:
-#                # if we reach this, we need to authenticate...
-#                self.logger.info("Hub says authentication required...")
-#                #challenge = error.info()['Www-Authenticate']
-#                #print "******************" + str(challenge)
-#                
-#                # authenticate and re-try
-#                token = self.hub_token(user, password, service, scope, realm)
-#                response = self.hub_request(api_url, token)
-#                
-#                if response.status_code == 200:
-#                    self.logger.debug("200 OK - authenticated")
-#                    data = json.loads(str(response.content))
-#                else:
-#                    self.logger.error("Invalid response from docker hub: " + str(response.content))
-#                
-#            else:
-#                self.logger.info("HTTP error from docker hub: " + response.content)
-#        else:
-#            data = json.loads(str(response.content))
-#        return data
 
-    
+    def docker_hub_image_tags(self, username, password, repo):
+	"""Get the list of tags for a given image on docker hub """
+
+        # token
+        r = requests.post(
+            self.settings.hub_address + '/v2/users/login/',
+            json={'password': password, 'username': username},
+            headers={
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'})
+        if r.status_code == requests.codes.ok:
+            token = 'JWT ' + r.json()['token']
+            r = requests.get(
+            self.settings.hub_address + '/v2/repositories/' + repo + '/tags',
+            headers={'Authorization': token})
+            result = r.json()['results']
+        else:
+            result = []
+            App.get_running_app().error("Unable to obtain Docker Hub token, check connectivity and username/password")
+            
+        return result
+
+
     # images available for download
     def update_downloadable_images(self, container):
         """
@@ -1193,44 +1146,43 @@ class Controller:
         """
         self.logger.debug("checking for remote images")
         downloadable_images = []
-        try:
-            # V2 API doesn't seem to support looking up tags for private images, cannot 
-            # find any documentation. Also note - trailing slash on v1 api is a 404
-            response = requests.get(
-                "https://registry.hub.docker.com/v1/repositories/{image_name}/tags".format(
-                    image_name = container["image_name"]
-                ), 
-                auth=HTTPBasicAuth(self.settings.hub_username, self.settings.hub_password),
-                timeout=5
-            )
-            if response.status_code == 200:
-                images = json.loads(str(response.content))
+        if self.settings.hub_username and self.settings.hub_password:
+            try:
+                images = self.docker_hub_image_tags(
+                self.settings.hub_username,
+                self.settings.hub_password,
+                container["image_name"])
 
                 if images:
-                    for tags in images: # <<<V1 | V2>>> images["results"]:
+                    for tags in images:
                         # if image is already downloaded, don't list it as available for download
                         image_name = container["image_name"] + ":" + tags["name"]
                         self.logger.info("checking status of remote image " + image_name)
                         if not self.tag_exists_locally(image_name):
                             downloadable_images.append(image_name)
-            else:
-                self.logger.error("Error from docker hub - image accessible and hub up?" + str(response))
-        except requests.exceptions.ConnectionError as e:
-            self.logger.exception(e)
-            self.logger.error("failed to reach docker hub - no internet?")
-        downloadable_images.sort(reverse=True)
-        
+                        else:
+                            self.logger.error("Error from docker hub - image accessible and hub up?")
+                downloadable_images.sort(reverse=True)
+            except requests.exceptions.ConnectionError as e:
+                self.logger.exception(e)
+                self.logger.error("failed to reach docker hub - no internet?")
+	  
+        else:
+            time.sleep(4) # seems to be a race condition here fixable by a small wait
+                          # FIXME probably its to do with painting the error message from a thread
+                          # probably need to do something like this... http://stackoverflow.com/a/18990710
+            App.get_running_app().error("Please enter your Docker Hub username and password on the settings screen")
         if len(downloadable_images):
             newest_image = downloadable_images[0]
         else:
             newest_image = None
-            
+
         self.logger.debug("finished checking remote images")
         return downloadable_images, newest_image
 
     # test if a tag has already been downloaded
     def tag_exists_locally(self, image_name):
-        """determine if a pattern and tag exists locallay"""        
+        """determine if a pattern and tag exists locallay"""
         found = False
         i = 0
         local_images = self.cli.images()
@@ -1250,15 +1202,15 @@ class Controller:
     def run_puppet(self, container):
         """Run puppet on the master or agent"""
         return self.docker_exec(container, "puppet agent --detailed-exitcodes -t")
-    
+
     def auto_provision(self):
         self.logger.info("starting auto provision thread...")
         provisioned = False
         while not provisioned and self.running:
-            if (self.container_alive(self.container["agent"]) and       
+            if (self.container_alive(self.container["agent"]) and
                     self.container_alive(self.container["master"]) and
                     self.pe_status() == "running"):
-                    
+
                 # can only provision when PE is running and agent is alive
                 self.complete_provision()
                 provisioned = True
@@ -1266,7 +1218,7 @@ class Controller:
                 time.sleep(1)
         self.logger.info("...auto provisioning complete (or thread exiting...)!")
 
-                
+
     def complete_provision(self):
         """Provision agent, sign cert, run puppet on agent - AIO"""
         self.logger.info("provisioning agent...")
@@ -1278,8 +1230,8 @@ class Controller:
         self.logger.info("running puppet on agent...")
         self.run_puppet(self.container["agent"])
         self.logger.info("...provisioning complete! :D")
-        
-        
+
+
     def agent_provision(self):
         """Install puppet on agent - you need to accept and run puppet manually"""
         # fix /etc/hosts
@@ -1309,13 +1261,13 @@ class Controller:
         exit_code = self.cli.exec_inspect(exec_instance["Id"])['ExitCode']
         self.logger.debug("...done! result: {exit_code}".format(
             exit_code=exit_code))
-        return exit_code  
+        return exit_code
 
     def clean_certs(self):
         """Delete agent cert from master and all certs from agent to allow reprovisioning"""
         agent_cleaned = False
         master_cleaned = False
-        
+
         # purge agent cert from master
         if self.container_alive(self.container["master"]):
             if self.pe_status() == "running":
@@ -1326,7 +1278,7 @@ class Controller:
                 # no PDB..? we can still make reprovision work by doing cert clean...
                 cmd = "puppet cert clean {host}"
             self.docker_exec(
-                self.container["master"], 
+                self.container["master"],
                 cmd.format(
                     host=self.container["agent"]["host"]
                 )
@@ -1338,9 +1290,9 @@ class Controller:
             cmd = "rm -rf /etc/puppetlabs/puppet/ssl"
             self.docker_exec(self.container["agent"], cmd)
             agent_cleaned = True
-            
+
         return master_cleaned, agent_cleaned
-        
+
 class ScreenManagement(ScreenManager):
     """Screen management binding class"""
     pass
@@ -1353,7 +1305,7 @@ class PeKitApp(App):
     logger = logging.getLogger(__name__)
     settings = Settings()
     __version__ = "v0.5.1"
-    
+
     def check_update(self):
         """check for new release of the app"""
         try:
@@ -1361,7 +1313,7 @@ class PeKitApp(App):
                 urllib2.urlopen(
                     "https://api.github.com/repos/{gh_repo}/releases".format(
                         gh_repo=self.settings.gh_repo,
-                    ), 
+                    ),
                     timeout=5
                 ).read()
             )
@@ -1371,12 +1323,12 @@ class PeKitApp(App):
                     "A new version of PE_Kit is available ({latest_tag}), you are running {version}\n" "please go to https://github.com/{gh_repo}/releases to download the\n"
                     "new version".format(
                         gh_repo=self.settings.gh_repo,
-                        latest_tag=latest_tag, 
+                        latest_tag=latest_tag,
                         version=self.__version__))
         except (TypeError, urllib2.URLError) as e:
             self.error("failed to check for new releases, please check your internet connection")
             self.logger.exception(e)
-            
+
 
 
     def build(self):
@@ -1392,13 +1344,13 @@ class PeKitApp(App):
         self.root.get_screen("main").toggle_advanced()
 
         # setup the settings and about screens
-        self.root.get_screen("images").on_start()        
+        self.root.get_screen("images").on_start()
         self.root.get_screen("settings").on_start()
         self.root.get_screen("about").on_start()
 
         # monitor the docker daemon and container
         Clock.schedule_interval(self.daemon_monitor, 1)
-        
+
         # disclaimer message
         self.info(
             "Warning:  This tool is for test and evaulation use only\n"
@@ -1407,22 +1359,22 @@ class PeKitApp(App):
 
         # check for newer version
         self.check_update()
-        
+
     def on_stop(self):
         self.controller.running = False
         if self.settings.shutdown_on_exit:
             self.info("stopping all docker containers")
             self.controller.stop_all_docker_containers()
 
-            
+
     def get_master_selected_image(self):
         return self.get_selected_image(
             self.controller.container["master"]["local_images"], "master_selected_image")
-    
+
     def get_agent_selected_image(self):
         return self.get_selected_image(
              self.controller.container["agent"]["local_images"], "agent_selected_image")
-    
+
     def get_selected_image(self, local_images, widget_group):
         if len(local_images) == 0:
             # error loading local images or none available
@@ -1437,7 +1389,7 @@ class PeKitApp(App):
             try:
                 group = ToggleButton.get_widgets(widget_group)
                 self.logger.debug("found items in list: " + str(len(group)))
-                
+
                 # handle nothing selected yet
                 selected = None
                 for member in group:
@@ -1485,17 +1437,17 @@ class PeKitApp(App):
     def question(self, message, yes_callback=None, no_callback=None):
         """Ask a yes/no question with an optional callback attached to each choice"""
         self.popup(
-            title="Question", 
-            message=message, 
-            question=True, 
+            title="Question",
+            message=message,
+            question=True,
             yes_callback=yes_callback,
             no_callback=no_callback
         )
-    
+
     def info(self, message):
         self.logger.info(message)
         return self.popup(title='Information', message=message)
-        
+
     def container_monitor(self, container, button, label):
         uptime = container["status"]
         if uptime:
@@ -1506,7 +1458,7 @@ class PeKitApp(App):
             icon = "icons/play.png"
         button.background_normal = icon
         label.text = status
-        
+
         return uptime
 
     def daemon_monitor(self, x):
@@ -1516,7 +1468,7 @@ class PeKitApp(App):
         daemon_up = False
 
         if self.controller.daemon_status == "running":
-            self.logger.debug("docker daemon ok :)")            
+            self.logger.debug("docker daemon ok :)")
             daemon_icon = "icons/ok.png"
             daemon_up = True
 
@@ -1529,15 +1481,15 @@ class PeKitApp(App):
             agent_uptime = self.container_monitor(
                 self.controller.container["agent"],
                 screen.agent_container_delete_button,
-                screen.agent_status_label            
+                screen.agent_status_label
             )
-            
+
             if master_uptime:
                 pe_status = self.controller.pe_status()
-    
+
         elif self.controller.daemon_status == "loading":
             self.logger.error("docker daemon starting!")
-            daemon_icon = "icons/wait.png"                   
+            daemon_icon = "icons/wait.png"
         else:
             self.logger.error("docker daemon dead!")
             daemon_icon = "icons/error.png"
@@ -1547,16 +1499,16 @@ class PeKitApp(App):
             screen.terminal_button: False if pe_status == "running" or pe_status == "loading" else True,
             screen.master_run_puppet_button: False if pe_status == "running" else True,
             screen.clean_certs_button: False if pe_status == "running" or pe_status == "loading" or agent_uptime else True,
-            
+
             screen.agent_provision_button: False if pe_status == "running" and agent_uptime else True,
             screen.agent_run_puppet_button: False if pe_status == "running" and agent_uptime else True,
             screen.agent_terminal_button: False if agent_uptime else True,
             screen.agent_demo_button: False if agent_uptime else True,
-            
+
             # FIXME more responsive here please
             screen.master_container_delete_button: False if daemon_up and self.controller.gui_ready else True,
             screen.agent_container_delete_button: False if daemon_up and self.controller.gui_ready else True,
-        }    
+        }
         if pe_status == "running":
             pe_status_icon = "icons/puppet.png"
         elif pe_status == "loading":
@@ -1569,7 +1521,7 @@ class PeKitApp(App):
             if not hasattr(key, 'busy') or not key.busy:
                 # protect us from altering buttons that are busy doing something
                 key.disabled = actions_disabled[key]
-        
+
         # docker daemon
         screen.docker_status_button.background_normal = daemon_icon
 
@@ -1582,16 +1534,16 @@ logger = logging.getLogger(__name__)
 try:
     app = PeKitApp()
     app.run()
-    
+
     # delete the logfile on succesful exit
     os.unlink(logfile)
 except KeyboardInterrupt:
     # signal all treads to stop
     logger.error("someone pressed ctrl+c - exit")
     app.controller.running = False
-    
+
     # delete the logfile on succesful exit
-    os.unlink(logfile)    
+    os.unlink(logfile)
 except Exception as e:
     app.controller.running = False
     logger.exception(e)
