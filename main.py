@@ -805,13 +805,22 @@ class Controller:
             self.logger.info("Logging in to docker hub...(WARNING - this takes a while to fail)")
             try:
                 login_result = self.cli.login(
-                    self.settings.hub_username,
+                    username=self.settings.hub_username,
                     password=self.settings.hub_password,
                     registry='https://index.docker.io/v1', #self.settings.hub_address,
                 )
                 self.logger.debug("LOGIN result " + str(login_result))
-                if login_result and login_result["Status"] == 'Login Succeeded':
-                    status = True
+                if login_result:
+                    if 'username' in login_result:
+                      self.logger.info('already logged in...')
+                      status = True
+                    elif ('Status' in login_result and 
+                          login_result["Status"] == 'Login Succeeded'):
+                      self.logger.info('logged in ok')
+                      status = True
+                    else:
+                      self.logger.info('hub login failed')
+                      status = False
                 else:
                     status = False
             except docker.errors.APIError as e:
@@ -1113,16 +1122,19 @@ class Controller:
             self.settings.hub_address + '/v2/users/login/',
             json={'password': password, 'username': username},
             headers={
-            'Accept': 'application/json',
-            'Content-Type': 'application/json'})
+              'Accept': 'application/json',
+              'Content-Type': 'application/json'},
+            timeout=5)
         if r.status_code == requests.codes.ok:
             token = 'JWT ' + r.json()['token']
             r = requests.get(
             self.settings.hub_address + '/v2/repositories/' + repo + '/tags',
-            headers={'Authorization': token})
+            headers={'Authorization': token},
+            timeout=5)
             result = r.json()['results']
         else:
             result = []
+            self.logger.error('docker hub login failed' + str(r))
             App.get_running_app().error("Unable to obtain Docker Hub token, check connectivity and username/password")
             
         return result
@@ -1291,7 +1303,7 @@ class PeKitApp(App):
     """
     logger = logging.getLogger(__name__)
     settings = Settings()
-    __version__ = "v0.5.3"
+    __version__ = "v0.5.4"
     error_messages = []
     info_messages = []
     
