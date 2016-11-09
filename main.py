@@ -814,7 +814,7 @@ class Controller:
                     if 'username' in login_result:
                       self.logger.info('already logged in...')
                       status = True
-                    elif ('Status' in login_result and 
+                    elif ('Status' in login_result and
                           login_result["Status"] == 'Login Succeeded'):
                       self.logger.info('logged in ok')
                       status = True
@@ -1136,7 +1136,7 @@ class Controller:
             result = []
             self.logger.error('docker hub login failed' + str(r))
             App.get_running_app().error("Unable to obtain Docker Hub token, check connectivity and username/password")
-            
+
         return result
 
 
@@ -1168,7 +1168,7 @@ class Controller:
             except requests.exceptions.ConnectionError as e:
                 self.logger.exception(e)
                 self.logger.error("failed to reach docker hub - no internet?")
-	  
+
         else:
             App.get_running_app().error("Please enter your Docker Hub username and password on the settings screen")
         if len(downloadable_images):
@@ -1306,7 +1306,25 @@ class PeKitApp(App):
     __version__ = "v0.5.4"
     error_messages = []
     info_messages = []
-    
+
+    def outdated(self, this_version, upstream_version):
+        this = this_version.replace('v', '').split('.')
+        upstream = upstream_version.replace('v', '').split('.')
+
+        major = 0
+        minor = 1
+        patch = 2
+
+        if int(this[major]) > int(upstream[major]):
+            outdated = False
+        elif int(this[minor]) > int(upstream[minor]):
+            outdated = False
+        elif int(this[patch]) > int(upstream[patch]):
+            outdated = False
+        else:
+            outdated = True
+
+        return outdated
 
     def check_update(self):
         """check for new release of the app"""
@@ -1320,7 +1338,7 @@ class PeKitApp(App):
                 ).read()
             )
             latest_tag = r[0]["tag_name"]
-            if latest_tag != self.__version__:
+            if self.outdated(self.__version__, latest_tag):
                 self.info(
                     "A new version of PE_Kit is available ({latest_tag}), you are running {version}\n" "please go to https://github.com/{gh_repo}/releases to download the\n"
                     "new version".format(
@@ -1407,7 +1425,7 @@ class PeKitApp(App):
     def error(self, message):
         self.logger.error(message)
         self.error_messages.append(message)
-        
+
     def popup(self, title, message, question=False, yes_callback=None, no_callback=None):
         def close(button):
             text = button.text
@@ -1450,8 +1468,8 @@ class PeKitApp(App):
     def info(self, message):
         self.logger.info(message)
         self.info_messages.append(message)
-        
-        
+
+
     def container_monitor(self, container, button, label):
         uptime = container["status"]
         if uptime:
@@ -1464,7 +1482,7 @@ class PeKitApp(App):
         label.text = status
 
         return uptime
-    
+
     def message_monitor(self, x):
         """
         Called every second and displays info or warning messages from the main thread to prevent painting errors
@@ -1474,7 +1492,7 @@ class PeKitApp(App):
             self.popup(title='Error!', message=self.error_messages.pop(0))
         if len(self.info_messages):
             self.popup(title='Information', message=self.info_messages.pop(0))
-        
+
 
     def daemon_monitor(self, x):
         screen = self.root.get_screen("main")
