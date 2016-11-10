@@ -35,9 +35,10 @@ class Settings:
     hub_username            = None
     hub_password            = None
     hub_address             = None
+    licence_file            = None
     shared_dir              = False
-    
-    
+
+
     def __init__(self):
         self.__dict__ = self.__shared_state
         self.load()
@@ -63,6 +64,7 @@ class Settings:
         self.config.set("main", "hub_username", self.hub_username)
         self.config.set("main", "hub_password", self.hub_password)
         self.config.set("main", "hub_address", self.hub_address)
+        self.config.set("main", "licence_file", self.licence_file)
         self.config.set("main", "shared_dir", self.shared_dir)
         self.config.write(open(self.CONFIG_FILE, 'w'))
 
@@ -83,10 +85,11 @@ class Settings:
         self.hub_username               = self.config.get("main", "hub_username")
         self.hub_password               = self.config.get("main", "hub_password")
         self.hub_address                = self.config.get("main", "hub_address")
-        
+        self.licence_file               = self.config.get("main", "licence_file")
+
         shared_dir_raw = self.config.get("main", "shared_dir")
         self.shared_dir = shared_dir_raw if shared_dir_raw.lower() != "false" else False
-        
+
         # skip loading image selections if using latest images
         if not self.use_latest_image:
           self.master_selected_image    = self.config.get("main", "master_selected_image")

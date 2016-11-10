@@ -304,6 +304,7 @@ ScreenManagement:
     hub_username_textinput: hub_username_textinput
     hub_password_textinput: hub_password_textinput
     hub_address_textinput: hub_address_textinput
+    licence_file_textinput: licence_file_textinput
 
 
     use_latest_images_checkbox: use_latest_images_checkbox
@@ -359,6 +360,12 @@ ScreenManagement:
                 text: 'Registry'
             TextInput
                 id: hub_address_textinput
+
+            # Licence key
+            Label:
+                text: 'Path to licence file'
+            TextInput:
+                id: licence_file_textinput
 
 
             # latest image
@@ -518,4 +525,3 @@ ScreenManagement:
                 text: 'Back'
                 size_hint: (1, 0.1)
                 on_release: app.root.current = 'menu'
-

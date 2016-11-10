@@ -74,6 +74,7 @@ import platform
 from settings import Settings
 from requests.auth import HTTPBasicAuth
 import requests
+import shutil
 
 class ImagesScreen(Screen):
     """
@@ -239,6 +240,7 @@ class SettingsScreen(Screen):
     logger = logging.getLogger(__name__)
     hub_address_textinput               = ObjectProperty(None)
     hub_password_textinput              = ObjectProperty(None)
+    licence_file_textinput              = ObjectProperty(None)
     use_latest_images_checkbox          = ObjectProperty(None)
     start_automatically_checkbox        = ObjectProperty(None)
     provision_automatically_checkbox    = ObjectProperty(None)
@@ -259,6 +261,7 @@ class SettingsScreen(Screen):
         self.hub_username_textinput.text                = self.settings.hub_username
         self.hub_password_textinput.text                = self.settings.hub_password
         self.hub_address_textinput.text                 = self.settings.hub_address
+        self.licence_file_textinput.text                = self.settings.licence_file
         self.use_latest_images_checkbox.active          = self.settings.use_latest_image
         self.start_automatically_checkbox.active        = self.settings.start_automatically
         self.provision_automatically_checkbox.active    = self.settings.provision_automatically
@@ -272,6 +275,7 @@ class SettingsScreen(Screen):
         self.settings.hub_username              = self.hub_username_textinput.text
         self.settings.hub_password              = self.hub_password_textinput.text
         self.settings.hub_address               = self.hub_address_textinput.text
+        self.settings.licence_file              = self.licence_file_textinput.text
         self.settings.use_latest_image          = self.use_latest_images_checkbox.active
         self.settings.start_automatically       = self.start_automatically_checkbox.active
         self.settings.provision_automatically   = self.provision_automatically_checkbox.active
@@ -598,6 +602,8 @@ class Controller:
     # Save to intermediate file to prevent streaming errors and preserve exit status
     CURL_COMMAND_SAFE="curl -k https://pe-puppet.localdomain:8140/packages/current/install.bash > /tmp/pe_installer && bash < /tmp/pe_installer"
 
+    MONITOR_THREAD_INTERVAL = 1
+
     cli = None
 
     docker_url = None
@@ -700,7 +706,7 @@ class Controller:
                 self.container["agent"]["status"] = self.container_alive(self.container["agent"])
             else:
                 self.container_status = False
-            time.sleep(1)
+            time.sleep(self.MONITOR_THREAD_INTERVAL)
 
     def pe_status(self):
         """return status of PE master: running, loading, stopped"""
@@ -712,7 +718,7 @@ class Controller:
 
         if self.pe_url():
             try:
-                code = urllib2.urlopen(self.pe_url(), context=ctx, timeout=0.5).getcode()
+                code = urllib2.urlopen(self.pe_url(), context=ctx, timeout=self.MONITOR_THREAD_INTERVAL * 0.2).getcode()
                 if code == 200:
                     self.logger.debug("puppet up and running :D")
                     status = "running"
@@ -942,9 +948,12 @@ class Controller:
 
     def start_pe(self):
         """ Start PE """
-        return self.start_container(
+        status = self.start_container(
             self.container["master"],
             self.settings.master_selected_image)
+
+        if status and self.settings.licence_file:
+            self.install_licence()
 
     def start_container(self, container, image_name):
         status = False
@@ -1162,8 +1171,8 @@ class Controller:
                         self.logger.info("checking status of remote image " + image_name)
                         if not self.tag_exists_locally(image_name):
                             downloadable_images.append(image_name)
-                        else:
-                            self.logger.error("Error from docker hub - image accessible and hub up?")
+                else:
+                    self.logger.error("Error from docker hub - image accessible and hub up?")
                 downloadable_images.sort(reverse=True)
             except requests.exceptions.ConnectionError as e:
                 self.logger.exception(e)
@@ -1230,6 +1239,56 @@ class Controller:
         self.run_puppet(self.container["agent"])
         self.logger.info("...provisioning complete! :D")
 
+    def install_licence(self):
+        """Install user-provided licence file on the puppet master"""
+
+        self.logger.debug("Installing licence file...")
+
+        if os.path.isfile(self.settings.licence_file):
+            # first copy the licence file to make sure it ends up with the right name
+            licence_filename = 'license.key'
+            licence_tempfile = '/tmp/' + licence_filename
+            shutil.copyfile(self.settings.licence_file, licence_tempfile)
+
+            # upload file to container (via tarball)
+            self.upload_file(
+                self.container["master"],
+                licence_tempfile,
+                "/etc/puppetlabs"
+            )
+
+            # remove tempfile
+            self.logger.debug("licence uploaded, deleting tempfile")
+            os.unlink(licence_tempfile)
+        else:
+             App.get_running_app().error(
+                "Specified licence key file %(licence_file)s does not exist"
+                % {'licence_file': self.settings.licence_file})
+
+    def upload_file(self, container, local_path, remote_path):
+        # Python tarfile module has to create filesystem objects so might as
+        # well just create a tar file on the system
+        f, tar_tmp = tempfile.mkstemp()
+        self.logger.debug(
+            "creating tarfile at %(tar_tmp)s containing %(local_path)s" % locals())
+        subprocess.call(
+            [
+                "tar",
+                "cvf", tar_tmp,
+                "-C", os.path.dirname(local_path),
+                os.path.basename(local_path)
+        ])
+
+        # reopen file and read binary
+        os.close(f)
+        tar_bytes = open(tar_tmp, "rb").read()
+
+        # docker python api seems to only provide a way to upload files via tarballs
+        container_name = container["name"]
+        self.logger.debug(
+            "Uploading tarball bytes to %(container_name)s at %(remote_path)s" % locals())
+        self.cli.put_archive(container_name, remote_path, tar_bytes)
+        os.remove(tar_tmp)
 
     def agent_provision(self):
         """Install puppet on agent - you need to accept and run puppet manually"""
@@ -1303,7 +1362,7 @@ class PeKitApp(App):
     """
     logger = logging.getLogger(__name__)
     settings = Settings()
-    __version__ = "v0.5.4"
+    __version__ = "v0.5.5"
     error_messages = []
     info_messages = []
 
@@ -1315,7 +1374,9 @@ class PeKitApp(App):
         minor = 1
         patch = 2
 
-        if int(this[major]) > int(upstream[major]):
+        if this_version == upstream_version:
+            outdated = False
+        elif int(this[major]) > int(upstream[major]):
             outdated = False
         elif int(this[minor]) > int(upstream[minor]):
             outdated = False
@@ -1370,7 +1431,7 @@ class PeKitApp(App):
 
         # monitor the docker daemon and container
         Clock.schedule_interval(self.daemon_monitor, 1)
-        Clock.schedule_interval(self.message_monitor, 1)
+        Clock.schedule_interval(self.message_monitor, 5)
 
         # disclaimer message
         self.info(
