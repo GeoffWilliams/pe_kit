@@ -24,7 +24,7 @@ class Utils:
         settings = Settings()
         # use terminal provided in settings file, otherwise detect
         if settings.terminal_program:
-            shell = settings.terminal_program + " -e {command}"
+            shell = settings.terminal_program + " -e \"{command}\""
         else:
             p = platform.system()
             if p == "Darwin":

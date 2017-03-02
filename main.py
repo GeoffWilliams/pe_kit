@@ -930,6 +930,7 @@ class Controller:
             443: None,
             8140: 8140 if self.settings.expose_ports else None,
             8142: 8142 if self.settings.expose_ports else None,
+            8170: 8170 if self.settings.expose_ports else None,
             9000: None,
             61613: 61613 if self.settings.expose_ports else None,
             61616: None,
@@ -937,6 +938,7 @@ class Controller:
 
     def agent_port_bindings(self):
         return {
+            80: None,
             9090: None,
         }
 
