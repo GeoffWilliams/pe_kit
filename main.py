@@ -1,5 +1,6 @@
 #!/usr/bin/env kivy
 #
+# Copyright 2017 Geoff Williams for Declarative Systems PTY LTD
 # Copyright 2016 Geoff Williams for Puppet Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -970,9 +971,14 @@ class Controller:
                 port_bindings_func = getattr(self, container["port_bindings_func"])
                 port_bindings = port_bindings_func()
                 volumes = [
-                    "/sys/fs/cgroup",
+                    '/sys/fs/cgroup' #: {'/sys/fs/cgroup': 'ro'},
                 ]
-                volume_map = {}
+                volume_map = {
+                    '/sys/fs/cgroup': {
+                        'bind': '/sys/fs/cgroup',
+                        'mode': 'ro',
+                    },
+                }
                 if self.settings.shared_dir:
                     shared_dir_path = os.path.abspath(
                         os.path.expanduser('~') + '/' + self.settings.shared_dir)
@@ -986,6 +992,15 @@ class Controller:
                     }
                     volumes.append('/shared')
 
+                host_config=self.cli.create_host_config(
+                    cap_add=['SYS_ADMIN'],
+                    tmpfs={
+                        '/run':'',
+                        '/run/lock': '',
+                    },
+                    port_bindings=port_bindings,
+                    binds=volume_map)
+
                 proceed = True
                 try:
                     proceed = True
@@ -996,10 +1011,7 @@ class Controller:
                       detach=True,
                       volumes = volumes,
                       ports = port_bindings.keys(),
-                      host_config=self.cli.create_host_config(
-                          privileged=True,
-                          port_bindings=port_bindings,
-                          binds=volume_map)
+                      host_config=host_config,
                     )
                 except docker.errors.APIError as e:
                     if e.response.status_code == 409:
@@ -1364,7 +1376,7 @@ class PeKitApp(App):
     """
     logger = logging.getLogger(__name__)
     settings = Settings()
-    __version__ = "v0.5.5"
+    __version__ = "v0.6.0"
     error_messages = []
     info_messages = []
 
