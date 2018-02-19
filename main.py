@@ -1,4 +1,4 @@
-#!/usr/bin/env kivy
+#!/usr/bin/env python2.7
 #
 # Copyright 2017 Geoff Williams for Declarative Systems PTY LTD
 # Copyright 2016 Geoff Williams for Puppet Inc.
@@ -984,17 +984,16 @@ class Controller:
                         os.path.expanduser('~') + '/' + self.settings.shared_dir)
                     if not os.path.exists(shared_dir_path):
                         os.mkdir(shared_dir_path)
-                    volume_map = {
-                         os.path.abspath(shared_dir_path): {
-                            'bind': '/shared',
-                            'mode': 'rw',
-                        }
+                    volume_map[os.path.abspath(shared_dir_path)] = {
+                        'bind': '/shared',
+                        'mode': 'rw',
                     }
                     volumes.append('/shared')
 
                 host_config=self.cli.create_host_config(
                     cap_add=['SYS_ADMIN'],
                     tmpfs={
+                        '/tmp:exec': '',
                         '/run':'',
                         '/run/lock': '',
                     },
