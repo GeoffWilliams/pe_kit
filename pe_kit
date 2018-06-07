@@ -1,0 +1,7 @@
+#!/bin/bash
+
+if [ -d "$PE_KIT_HOME" ] ; then
+    cd "$PE_KIT_HOME"
+fi
+. env/bin/activate
+python ./main.py -- "$@"

@@ -76,6 +76,7 @@ from settings import Settings
 from requests.auth import HTTPBasicAuth
 import requests
 import shutil
+import argparse
 
 class ImagesScreen(Screen):
     """
@@ -638,6 +639,9 @@ class Controller:
     def __init__(self):
         self.__dict__ = self.__shared_state
 
+    def set_code_dir(self, code_dir):
+        self.code_dir = code_dir
+
     def pe_url(self):
         try:
             url = self.container["master"]["urls"]["443/tcp"]
@@ -947,18 +951,22 @@ class Controller:
         """ start agent container """
         return self.start_container(
             self.container["agent"],
-            self.settings.agent_selected_image)
+            self.settings.agent_selected_image,
+            self.code_dir
+        )
 
     def start_pe(self):
         """ Start PE """
         status = self.start_container(
             self.container["master"],
-            self.settings.master_selected_image)
+            self.settings.master_selected_image,
+            self.code_dir
+        )
 
         if status and self.settings.licence_file:
             self.install_licence()
 
-    def start_container(self, container, image_name):
+    def start_container(self, container, image_name, code_dir):
         status = False
         if self.container_alive(container):
             status = True
@@ -989,6 +997,13 @@ class Controller:
                         'mode': 'rw',
                     }
                     volumes.append('/shared')
+
+                if code_dir:
+                    volume_map[os.path.abspath(code_dir)] = {
+                        'bind': '/etc/puppetlabs/code',
+                        'mode': 'ro',
+                    }
+                    volumes.append("/etc/puppetlabs/code")
 
                 host_config=self.cli.create_host_config(
                     cap_add=['SYS_ADMIN', 'SYS_PTRACE'],
@@ -1379,6 +1394,9 @@ class PeKitApp(App):
     error_messages = []
     info_messages = []
 
+    def set_code_dir(self, code_dir):
+        self.code_dir = code_dir
+
     def outdated(self, this_version, upstream_version):
         this = this_version.replace('v', '').split('.')
         upstream = upstream_version.replace('v', '').split('.')
@@ -1427,6 +1445,7 @@ class PeKitApp(App):
 
     def build(self):
         self.controller = Controller()
+        self.controller.set_code_dir(self.code_dir)
         self.controller.start_docker_daemon()
         self.controller.app = self
         self.icon = "icons/logo.png"
@@ -1638,8 +1657,18 @@ class PeKitApp(App):
 
 # non-class logger
 logger = logging.getLogger(__name__)
+
+parser = argparse.ArgumentParser("PE_Kit - instant PE")
+parser.add_argument("--code-dir", default=False, help="Local directory to mount at /etc/puppetlabs/code")
+args = parser.parse_args()
+code_dir = args.code_dir
+if code_dir and not os.path.isdir(code_dir):
+    logger.error("%s specified by --code-dir does not exist" % code_dir)
+
+
 try:
     app = PeKitApp()
+    app.set_code_dir(code_dir)
     app.run()
 
     # delete the logfile on succesful exit
