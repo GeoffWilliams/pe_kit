@@ -991,7 +991,7 @@ class Controller:
                     volumes.append('/shared')
 
                 host_config=self.cli.create_host_config(
-                    cap_add=['SYS_ADMIN'],
+                    cap_add=['SYS_ADMIN', 'SYS_PTRACE'],
                     tmpfs={
                         '/tmp:exec': '',
                         '/run':'',
