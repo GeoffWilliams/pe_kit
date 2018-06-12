@@ -31,7 +31,8 @@ fh = logging.FileHandler(logfile)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 fh.setFormatter(formatter)
 logger.addHandler(fh)
-
+logging.getLogger("requests").setLevel(logging.WARNING)
+logging.getLogger("urllib3").setLevel(logging.WARNING)
 
 from kivy.app import App
 from kivy.clock import Clock
@@ -554,6 +555,11 @@ class Controller:
     logger = logging.getLogger(__name__)
     settings = Settings()
 
+    # CLI to overide settings
+    master_image = False
+    agent_image = False
+    provision_automatically = True
+
     # container names, image info and urls for each image.
     #   * name - the name of the started container in docker
     #   * host - the hostname for the started container
@@ -570,7 +576,7 @@ class Controller:
         "master": {
             "name": "pe_kit_master__",
             "host": "pe-puppet.localdomain",
-            "image_name": settings.master_image,
+            "image_name": master_image or settings.master_image,
             "local_images": [],
             "images": [],
             "instance": None,
@@ -585,7 +591,7 @@ class Controller:
         "agent": {
             "name": "pe_kit_agent__",
             "host": "agent.localdomain",
-            "image_name": settings.agent_image,
+            "image_name": agent_image or settings.agent_image,
             "local_images": [],
             "images": [],
             "instance": None,
@@ -636,11 +642,20 @@ class Controller:
     # Docker hub token - store to access multiple repos
     #token = None
 
+    # Status of PE last time we checked
+    last_status = None
+
     def __init__(self):
         self.__dict__ = self.__shared_state
 
-    def set_code_dir(self, code_dir):
-        self.code_dir = code_dir
+    # def set_code_dir(self, code_dir):
+    #     self.code_dir = code_dir
+    #
+    # def set_site_pp(self, site_pp):
+    #     self.site_pp = site_pp
+    #
+    # def set_disable_puppet_on_master(self, disable_puppet_on_master):
+    #     self.disable_puppet_on_master = disable_puppet_on_master
 
     def pe_url(self):
         try:
@@ -725,32 +740,37 @@ class Controller:
             try:
                 code = urllib2.urlopen(self.pe_url(), context=ctx, timeout=self.MONITOR_THREAD_INTERVAL * 0.2).getcode()
                 if code == 200:
-                    self.logger.debug("puppet up and running :D")
+                    message = "puppet up and running :D"
                     status = "running"
                 else:
-                    self.logger.debug("puppet loading...")
+                    message = "puppet loading..."
                     status = "loading"
             except urllib2.HTTPError as e:
-                self.logger.debug("puppet http server error: {message} code: {code}".format(
-                  message = e.reason,
-                  code = e.code
-                ))
+                message = "puppet http server error: {message} code: {code}".format(
+                  message=e.reason,
+                  code=e.code
+                )
                 status = "loading"
             except urllib2.URLError as e:
-                self.logger.debug("puppet stopped/unreachable at {pe_url}:  {message}".format(
-                  pe_url = self.pe_url(),
-                  message = e.reason,
-                ))
+                message = "puppet stopped/unreachable at {pe_url}:  {message}".format(
+                  pe_url=self.pe_url(),
+                  message=e.reason,
+                )
                 status = "loading"
             except ssl.SSLError as e:
-                self.logger.debug("puppet SSL timeout at {pe_url}:  {message}".format(
-                  pe_url = self.pe_url(),
-                  message = str(e),
-                ))
+                message = "puppet SSL timeout at {pe_url}:  {message}".format(
+                  pe_url=self.pe_url(),
+                  message=str(e),
+                )
                 status = "loading"
         else:
             status = "error"
+            message = "error"
 
+        if self.last_status != status:
+            self.logger.debug("Status change: " + message)
+
+        self.last_status = status
         return status
 
     def cleanup_container(self, container):
@@ -844,7 +864,7 @@ class Controller:
         return status
 
     def autostart_containers(self):
-        if self.settings.start_automatically:
+        if self.provision_automatically and self.settings.start_automatically:
             self.logger.info("starting PE and agent containers automatically...")
             while self.running and (not self.inital_setup_complete or not self.gui_ready):
                 self.logger.debug("waiting for inital_setup_complete...")
@@ -952,7 +972,8 @@ class Controller:
         return self.start_container(
             self.container["agent"],
             self.settings.agent_selected_image,
-            self.code_dir
+            self.code_dir,
+            self.site_pp
         )
 
     def start_pe(self):
@@ -960,13 +981,17 @@ class Controller:
         status = self.start_container(
             self.container["master"],
             self.settings.master_selected_image,
-            self.code_dir
+            self.code_dir,
+            self.site_pp
         )
+
+        if status and self.disable_puppet_on_master:
+            self.disable_puppet(self.container["master"])
 
         if status and self.settings.licence_file:
             self.install_licence()
 
-    def start_container(self, container, image_name, code_dir):
+    def start_container(self, container, image_name, code_dir, site_pp):
         status = False
         if self.container_alive(container):
             status = True
@@ -978,6 +1003,18 @@ class Controller:
                 ))
                 port_bindings_func = getattr(self, container["port_bindings_func"])
                 port_bindings = port_bindings_func()
+                # needs docker api upgrade
+                # mounts = [
+                #     {
+                #         "Type": "tmpfs",
+                #         "Target": "/tmp",
+                #         "TmpfsOptions": {
+                #             "Mode": 1777
+                #         }
+                #     }
+                # ]
+
+
                 volumes = [
                     '/sys/fs/cgroup' #: {'/sys/fs/cgroup': 'ro'},
                 ]
@@ -1005,6 +1042,13 @@ class Controller:
                     }
                     volumes.append("/etc/puppetlabs/code")
 
+                if site_pp:
+                    volume_map[os.path.abspath(site_pp)] = {
+                        'bind': '/etc/puppetlabs/code/environments/production/manifests/site.pp',
+                        'mode': 'ro',
+                    }
+                    volumes.append("/etc/puppetlabs/code/environments/production/manifests/site.pp")
+
                 host_config=self.cli.create_host_config(
                     cap_add=['SYS_ADMIN', 'SYS_PTRACE'],
                     tmpfs={
@@ -1013,7 +1057,8 @@ class Controller:
                         '/run/lock': '',
                     },
                     port_bindings=port_bindings,
-                    binds=volume_map)
+                    binds=volume_map,
+                )
 
                 proceed = True
                 try:
@@ -1125,9 +1170,10 @@ class Controller:
             docker_images = self.cli.images()
 
             for docker_image in docker_images:
-                image_name = docker_image["RepoTags"][0]
-                if image_name.startswith(container["image_name"]):
-                    local_images.append(image_name)
+                if docker_image["RepoTags"]:
+                    image_name = docker_image["RepoTags"][0]
+                    if image_name.startswith(container["image_name"]):
+                        local_images.append(image_name)
             local_images.sort(reverse=True)
 
             # move any 3.8x images to the end of the list otherwise they
@@ -1223,10 +1269,11 @@ class Controller:
         i = 0
         local_images = self.cli.images()
         while not found and i < len(local_images):
-            local_image = local_images[i]["RepoTags"][0]
-            self.logger.debug(local_image + "==" + image_name)
-            if local_image == image_name:
-                found = True
+            if local_images[i]["RepoTags"]:
+                local_image = local_images[i]["RepoTags"][0]
+                self.logger.debug(local_image + "==" + image_name)
+                if local_image == image_name:
+                    found = True
             i += 1
 
         self.logger.debug("image {image_name} local={found}".format(
@@ -1238,6 +1285,10 @@ class Controller:
     def run_puppet(self, container):
         """Run puppet on the master or agent"""
         return self.docker_exec(container, "puppet agent --detailed-exitcodes -t")
+
+    def disable_puppet(self, container):
+        """Disable the Puppet Agent"""
+        return self.docker_exec(container, "puppet agent --disable")
 
     def auto_provision(self):
         self.logger.info("starting auto provision thread...")
@@ -1393,9 +1444,19 @@ class PeKitApp(App):
     __version__ = "v0.6.0"
     error_messages = []
     info_messages = []
+    master_image = False
+    agent_image = False
+    provision_automatically = True
 
-    def set_code_dir(self, code_dir):
-        self.code_dir = code_dir
+    # def set_code_dir(self, code_dir):
+    #     self.code_dir = code_dir
+    #
+    # def set_site_pp(self, site_pp):
+    #     self.site_pp = site_pp
+    #
+    # def set_disable_puppet_on_master(self, disable_puppet_on_master):
+    #     self.disable_puppet_on_master = disable_puppet_on_master
+
 
     def outdated(self, this_version, upstream_version):
         this = this_version.replace('v', '').split('.')
@@ -1445,7 +1506,12 @@ class PeKitApp(App):
 
     def build(self):
         self.controller = Controller()
-        self.controller.set_code_dir(self.code_dir)
+        self.controller.code_dir = self.code_dir
+        self.controller.site_pp = self.site_pp
+        self.controller.disable_puppet_on_master = self.disable_puppet_on_master
+        self.controller.master_image = self.master_image
+        self.controller.agent_image = self.agent_image
+        self.controller.provision_automatically = self.provision_automatically
         self.controller.start_docker_daemon()
         self.controller.app = self
         self.icon = "icons/logo.png"
@@ -1594,7 +1660,6 @@ class PeKitApp(App):
         daemon_up = False
 
         if self.controller.daemon_status == "running":
-            self.logger.debug("docker daemon ok :)")
             daemon_icon = "icons/ok.png"
             daemon_up = True
 
@@ -1660,15 +1725,29 @@ logger = logging.getLogger(__name__)
 
 parser = argparse.ArgumentParser("PE_Kit - instant PE")
 parser.add_argument("--code-dir", default=False, help="Local directory to mount at /etc/puppetlabs/code")
+parser.add_argument("--site-pp", default=False, help="Local file to mount at /etc/puppetlabs/code/environments/production/manifests/site.pp")
+parser.add_argument("--disable-puppet-on-master", default=False, action="store_true", help="Disable running puppet on the puppet master")
+parser.add_argument("--master-image", default=False, help="Image to run puppet master with")
+parser.add_argument("--agent-image", default=False, help="Image to run puppet agent node with")
+parser.add_argument("--no-auto-provision", default=False, help="Do not install the puppet agent")
+
+
 args = parser.parse_args()
 code_dir = args.code_dir
+site_pp = args.site_pp
+disable_puppet_on_master = args.disable_puppet_on_master
 if code_dir and not os.path.isdir(code_dir):
     logger.error("%s specified by --code-dir does not exist" % code_dir)
 
 
 try:
     app = PeKitApp()
-    app.set_code_dir(code_dir)
+    app.code_dir = code_dir
+    app.site_pp = site_pp
+    app.disable_puppet_on_master = disable_puppet_on_master
+    app.master_image = args.master_image
+    app.agent_image = args.agent_image
+    app.provision_automatically = not args.no_auto_provision
     app.run()
 
     # delete the logfile on succesful exit
