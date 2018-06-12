@@ -857,7 +857,7 @@ class Controller:
         return status
 
     def autostart_containers(self):
-        if self.provision_automatically and self.settings.start_automatically:
+        if self.settings.start_automatically:
             self.logger.info("starting PE and agent containers automatically...")
             while self.running and (not self.inital_setup_complete or not self.gui_ready):
                 self.logger.debug("waiting for inital_setup_complete...")
@@ -865,7 +865,8 @@ class Controller:
             self.logger.info("Finished waiting for GUI to start, booting containers...")
             self.start_pe()
             self.start_agent()
-            if self.settings.provision_automatically:
+            # CLI + settings...
+            if self.provision_automatically and self.settings.provision_automatically:
                 self.logger.debug("provisioning puppet agent automatically...")
                 threading.Thread(target=self.auto_provision).start()
 
