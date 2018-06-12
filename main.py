@@ -645,7 +645,7 @@ class Controller:
         self.master_image = False
         self.agent_image = False
         self.provision_automatically = True
-
+        self.onceover_dir = False
         self.__dict__ = self.__shared_state
 
 
@@ -974,8 +974,6 @@ class Controller:
         return self.start_container(
             self.container["agent"],
             self.agent_image or self.settings.agent_selected_image,
-            self.code_dir,
-            self.site_pp
         )
 
     def start_pe(self):
@@ -983,8 +981,6 @@ class Controller:
         status = self.start_container(
             self.container["master"],
             self.master_image or self.settings.master_selected_image,
-            self.code_dir,
-            self.site_pp
         )
 
         if status and self.disable_puppet_on_master:
@@ -993,7 +989,7 @@ class Controller:
         if status and self.settings.licence_file:
             self.install_licence()
 
-    def start_container(self, container, image_name, code_dir, site_pp):
+    def start_container(self, container, image_name):
         status = False
         if self.container_alive(container):
             status = True
@@ -1026,19 +1022,67 @@ class Controller:
                     }
                     volumes.append('/shared')
 
-                if code_dir:
-                    volume_map[os.path.abspath(code_dir)] = {
-                        'bind': '/etc/puppetlabs/code',
+                if self.onceover_dir:
+
+                    # /etc/puppetlabs/code/environments/production/modules
+                    volume_map[os.path.abspath(onceover_dir) + "/.onceover/etc/puppetlabs/code/environments/production/modules"] = {
+                        'bind': '/etc/puppetlabs/code/environments/production/modules',
                         'mode': 'ro',
                     }
                     volumes.append("/etc/puppetlabs/code")
 
-                if site_pp:
-                    volume_map[os.path.abspath(site_pp)] = {
+                    # /etc/puppetlabs/environments/production/manifests/site.pp (mock takes precidence)
+                    volume_map[
+                        Utils.first_existing_file([
+                            os.path.abspath(onceover_dir) + "/spec/site.pp",
+                            os.path.abspath(onceover_dir) + "/manifests/site.pp"]
+                        )
+                    ] = {
                         'bind': '/etc/puppetlabs/code/environments/production/manifests/site.pp',
                         'mode': 'ro',
                     }
                     volumes.append("/etc/puppetlabs/code/environments/production/manifests/site.pp")
+
+                    # /etc/puppetlabs/environments/production/hiera.yaml
+                    volume_map[
+                        Utils.first_existing_file([
+                            os.path.abspath(onceover_dir) + "/spec/hiera.yaml",
+                            os.path.abspath(onceover_dir) + "/hiera.yaml"]
+                        )
+                    ] = {
+                        'bind': '/etc/puppetlabs/code/environments/production/hiera.yaml',
+                        'mode': 'ro',
+                    }
+                    volumes.append("/etc/puppetlabs/code/environments/production/hiera.yaml")
+
+                    # /etc/puppetlabs/environments/production/environment.conf
+                    volume_map[os.path.abspath(onceover_dir) + "/environment.conf"] = {
+                        'bind': '/etc/puppetlabs/code/environments/production/environment.conf',
+                        'mode': 'ro',
+                    }
+                    volumes.append("/etc/puppetlabs/code/environments/production/environment.conf")
+
+                    # /etc/puppetlabs/environments/production/scripts
+                    volume_map[os.path.abspath(onceover_dir) + "/scripts"] = {
+                        'bind': '/etc/puppetlabs/code/environments/production/scripts',
+                        'mode': 'ro',
+                    }
+                    volumes.append("/etc/puppetlabs/code/environments/production/scripts")
+
+
+                    # /etc/puppetlabs/environments/production/data
+                    volume_map[os.path.abspath(onceover_dir) + "/data"] = {
+                        'bind': '/etc/puppetlabs/code/environments/production/data',
+                        'mode': 'ro',
+                    }
+                    volumes.append("/etc/puppetlabs/code/environments/production/data")
+
+                    # /etc/puppetlabs/environments/production/site
+                    volume_map[os.path.abspath(onceover_dir) + "/site"] = {
+                        'bind': '/etc/puppetlabs/code/environments/production/site',
+                        'mode': 'ro',
+                    }
+                    volumes.append("/etc/puppetlabs/code/environments/production/site")
 
                 # security_opt needed to be able to bind mount inside container: https://github.com/moby/moby/issues/16429
                 host_config=self.ll_cli.create_host_config(
@@ -1483,8 +1527,7 @@ class PeKitApp(App):
 
     def build(self):
         self.controller = Controller()
-        self.controller.code_dir = self.code_dir
-        self.controller.site_pp = self.site_pp
+        self.controller.onceover_dir = self.onceover_dir
         self.controller.disable_puppet_on_master = self.disable_puppet_on_master
         self.controller.master_image = self.master_image
         self.controller.agent_image = self.agent_image
@@ -1701,8 +1744,7 @@ class PeKitApp(App):
 logger = logging.getLogger(__name__)
 
 parser = argparse.ArgumentParser("PE_Kit - instant PE")
-parser.add_argument("--code-dir", default=False, help="Local directory to mount at /etc/puppetlabs/code")
-parser.add_argument("--site-pp", default=False, help="Local file to mount at /etc/puppetlabs/code/environments/production/manifests/site.pp")
+parser.add_argument("--onceover-dir", default=False, help="Path to a control repository configured with onceover")
 parser.add_argument("--disable-puppet-on-master", default=False, action="store_true", help="Disable running puppet on the puppet master")
 parser.add_argument("--master-image", default=False, help="Image to run puppet master with")
 parser.add_argument("--agent-image", default=False, help="Image to run puppet agent node with")
@@ -1710,17 +1752,15 @@ parser.add_argument("--no-auto-provision", action="store_true", default=False, h
 
 
 args = parser.parse_args()
-code_dir = args.code_dir
-site_pp = args.site_pp
+onceover_dir = args.onceover_dir
 disable_puppet_on_master = args.disable_puppet_on_master
-if code_dir and not os.path.isdir(code_dir):
-    logger.error("%s specified by --code-dir does not exist" % code_dir)
+if onceover_dir and not os.path.isdir(onceover_dir):
+    logger.error("%s specified by --onceover-dir does not exist" % onceover_dir)
 
 
 try:
     app = PeKitApp()
-    app.code_dir = code_dir
-    app.site_pp = site_pp
+    app.onceover_dir = onceover_dir
     app.disable_puppet_on_master = disable_puppet_on_master
     app.master_image = args.master_image
     app.agent_image = args.agent_image

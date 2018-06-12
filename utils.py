@@ -15,6 +15,7 @@
 
 import platform
 import subprocess
+import os
 from settings import Settings
 
 class Utils:
@@ -36,3 +37,15 @@ class Utils:
                 raise("unsupported os " + p)
 
         subprocess.Popen(shell.format(command=command), shell=True)
+
+    @staticmethod
+    def first_existing_file(files):
+        """Return the name of the first file that exists in `files` or `False` if none can be Found"""
+        found = False
+        i = 0
+        while not found and i < len(files):
+            if os.path.isfile(files[i]):
+                found = files[i]
+            i += 1
+
+        return found
