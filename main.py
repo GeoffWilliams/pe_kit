@@ -865,6 +865,10 @@ class Controller:
             self.logger.info("Finished waiting for GUI to start, booting containers...")
             self.start_pe()
             self.start_agent()
+
+            # Always fix /etc/hosts
+            self.docker_exec(self.container["agent"], self.fix_hosts_cmd())
+
             # CLI + settings...
             if self.provision_automatically and self.settings.provision_automatically:
                 self.logger.debug("provisioning puppet agent automatically...")
@@ -1361,10 +1365,6 @@ class Controller:
 
     def agent_provision(self):
         """Install puppet on agent - you need to accept and run puppet manually"""
-        # fix /etc/hosts
-        fix_hosts_cmd = self.fix_hosts_cmd()
-        self.docker_exec(self.container["agent"], fix_hosts_cmd)
-        self.logger.info("hosts file updated on agent: " + fix_hosts_cmd)
 
         # curl script
         return self.docker_exec(self.container["agent"], self.curl_command())
