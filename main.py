@@ -47,8 +47,7 @@ from kivy.uix.dropdown import DropDown
 from kivy.uix.popup import Popup
 from kivy.uix.checkbox import CheckBox
 from kivy.core.clipboard import Clipboard
-from docker import Client
-from docker.utils import kwargs_from_env
+import docker
 import webbrowser
 from urlparse import urlparse
 import pprint
@@ -769,13 +768,13 @@ class Controller:
     def cleanup_container(self, container):
         """on-startup cleanup of orphaned containers (if requested)"""
         try:
-            if self.cli.inspect_container(container["name"]):
+            if self.ll_cli.inspect_container(container["name"]):
                 if self.settings.kill_orphans:
                     self.logger.info("killing orphaned container: " + container["name"])
-                    self.cli.remove_container(container["name"], force=True)
+                    self.ll_cli.remove_container(container["name"], force=True)
                 else:
                     self.logger.info("inspecting existing container")
-                    container["instance"] = self.cli.inspect_container(
+                    container["instance"] = self.ll_cli.inspect_container(
                         container["name"])
                     if container["instance"]["State"]["Running"]:
                         self.munge_urls(container)
@@ -789,12 +788,13 @@ class Controller:
 
     def pm_ip(self):
         """Get the IP address of the puppetmaster VM - only reachable from other docker containers"""
-        inspection = self.cli.inspect_container(Controller.container["master"]["name"])
+        inspection = self.ll_cli.inspect_container(Controller.container["master"]["name"])
         ip = inspection['NetworkSettings']['Networks']['bridge']['IPAddress']
         return ip
 
     def docker_init(self):
-        self.cli = Client(base_url='unix://var/run/docker.sock')
+        self.cli = docker.DockerClient(base_url='unix://var/run/docker.sock')
+        self.ll_cli = docker.APIClient(base_url='unix://var/run/docker.sock')
         self.docker_url = "https://{bridge_ip}".format(bridge_ip='localhost')
         self.logger.info("Docker URL: " + self.docker_url)
 
@@ -897,7 +897,7 @@ class Controller:
         alive = False
         if self.cli:
             try:
-                inspection = self.cli.inspect_container(container["name"])
+                inspection = self.ll_cli.inspect_container(container["name"])
                 if inspection["State"]["Status"] == "running":
                     started = calendar.timegm(
                       dateutil.parser.parse(inspection["State"]["StartedAt"]).timetuple())
@@ -931,7 +931,7 @@ class Controller:
         # check we are still alive as this also gets called when we shut down
         if self.container_alive(container):
             self.logger.info("stopping container " + container["name"])
-            self.cli.remove_container(container=container["instance"].get('Id'), force=True)
+            self.ll_cli.remove_container(container=container["instance"].get('Id'), force=True)
 
     def start_docker_daemon(self):
         # docker startup in own thread
@@ -1000,20 +1000,9 @@ class Controller:
                 ))
                 port_bindings_func = getattr(self, container["port_bindings_func"])
                 port_bindings = port_bindings_func()
-                # needs docker api upgrade
-                # mounts = [
-                #     {
-                #         "Type": "tmpfs",
-                #         "Target": "/tmp",
-                #         "TmpfsOptions": {
-                #             "Mode": 1777
-                #         }
-                #     }
-                # ]
-
 
                 volumes = [
-                    '/sys/fs/cgroup' #: {'/sys/fs/cgroup': 'ro'},
+                    '/sys/fs/cgroup',
                 ]
                 volume_map = {
                     '/sys/fs/cgroup': {
@@ -1046,7 +1035,8 @@ class Controller:
                     }
                     volumes.append("/etc/puppetlabs/code/environments/production/manifests/site.pp")
 
-                host_config=self.cli.create_host_config(
+                # security_opt needed to be able to bind mount inside container: https://github.com/moby/moby/issues/16429
+                host_config=self.ll_cli.create_host_config(
                     cap_add=['SYS_ADMIN', 'SYS_PTRACE'],
                     tmpfs={
                         '/tmp:exec': '',
@@ -1055,12 +1045,13 @@ class Controller:
                     },
                     port_bindings=port_bindings,
                     binds=volume_map,
+                    security_opt=["apparmor:unconfined"]
                 )
 
                 proceed = True
                 try:
                     proceed = True
-                    container["instance"] = self.cli.create_container(
+                    container["instance"] = self.ll_cli.create_container(
                       image=image_name,
                       name=container["name"],
                       hostname=container["host"],
@@ -1068,13 +1059,14 @@ class Controller:
                       volumes = volumes,
                       ports = port_bindings.keys(),
                       host_config=host_config,
+
                     )
                 except docker.errors.APIError as e:
                     if e.response.status_code == 409:
                         self.logger.info(
                             "Container {name} already exists - starting it".format(
                                 name=container["name"]))
-                        container["instance"] = self.cli.inspect_container(container["name"])
+                        container["instance"] = self.ll_cli.inspect_container(container["name"])
                     else:
                         proceed = False
                         self.logger.error("Unknown Docker error follows")
@@ -1083,7 +1075,7 @@ class Controller:
                 if proceed:
                     id = container["instance"].get('Id')
                     self.logger.info("starting container " + id)
-                    resp = self.cli.start(container=id)
+                    resp = self.ll_cli.start(container=id)
                     self.logger.info(container["instance"])
                     self.munge_urls(container)
 
@@ -1096,7 +1088,7 @@ class Controller:
     def munge_urls(self, container):
 
         # inspect the container and get the port mapping
-        container_info = self.cli.inspect_container(container["instance"].get("Id"))
+        container_info = self.ll_cli.inspect_container(container["instance"].get("Id"))
         pp = pprint.PrettyPrinter()
         pp.pprint(container_info)
 
@@ -1164,7 +1156,7 @@ class Controller:
         """
         local_images = []
         if self.cli is not None:
-            docker_images = self.cli.images()
+            docker_images = self.ll_cli.images()
 
             for docker_image in docker_images:
                 if docker_image["RepoTags"]:
@@ -1264,7 +1256,7 @@ class Controller:
         """determine if a pattern and tag exists locallay"""
         found = False
         i = 0
-        local_images = self.cli.images()
+        local_images = self.ll_cli.images()
         while not found and i < len(local_images):
             if local_images[i]["RepoTags"]:
                 local_image = local_images[i]["RepoTags"][0]
@@ -1383,16 +1375,16 @@ class Controller:
             container_name=container_name,
             cmd=cmd,
         ))
-        exec_instance = self.cli.exec_create(
+        exec_instance = self.ll_cli.exec_create(
             container=container_name,
             cmd=cmd,
         )
-        for line in self.cli.exec_start(exec_instance, stream=True):
+        for line in self.ll_cli.exec_start(exec_instance, stream=True):
             if self.running:
                 self.logger.debug(line)
             else:
                 raise Exception("Aborting command because quit/cancel!")
-        exit_code = self.cli.exec_inspect(exec_instance["Id"])['ExitCode']
+        exit_code = self.ll_cli.exec_inspect(exec_instance["Id"])['ExitCode']
         self.logger.debug("...done! result: {exit_code}".format(
             exit_code=exit_code))
         return exit_code
@@ -1489,14 +1481,12 @@ class PeKitApp(App):
 
 
     def build(self):
-        print "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"
         self.controller = Controller()
         self.controller.code_dir = self.code_dir
         self.controller.site_pp = self.site_pp
         self.controller.disable_puppet_on_master = self.disable_puppet_on_master
         self.controller.master_image = self.master_image
         self.controller.agent_image = self.agent_image
-        print "!!!!!!!!!!!!!!!!!1" + str(self.master_image) + " " + self.site_pp
         self.controller.provision_automatically = self.provision_automatically
         self.controller.start_docker_daemon()
         self.controller.app = self
