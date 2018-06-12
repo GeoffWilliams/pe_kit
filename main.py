@@ -66,7 +66,7 @@ from kivy.uix.settings import (SettingsWithSidebar,
                                SettingsWithSpinner,
                                SettingsWithTabbedPanel)
 from kivy.uix.screenmanager import ScreenManager, Screen, FadeTransition
-from kivy.properties import ObjectProperty
+from kivy.properties import ObjectProperty, BooleanProperty
 import dateutil.parser
 import datetime
 import ssl
@@ -555,10 +555,6 @@ class Controller:
     logger = logging.getLogger(__name__)
     settings = Settings()
 
-    # CLI to overide settings
-    master_image = False
-    agent_image = False
-    provision_automatically = True
 
     # container names, image info and urls for each image.
     #   * name - the name of the started container in docker
@@ -576,7 +572,7 @@ class Controller:
         "master": {
             "name": "pe_kit_master__",
             "host": "pe-puppet.localdomain",
-            "image_name": master_image or settings.master_image,
+            "image_name": settings.master_image,
             "local_images": [],
             "images": [],
             "instance": None,
@@ -591,7 +587,7 @@ class Controller:
         "agent": {
             "name": "pe_kit_agent__",
             "host": "agent.localdomain",
-            "image_name": agent_image or settings.agent_image,
+            "image_name": settings.agent_image,
             "local_images": [],
             "images": [],
             "instance": None,
@@ -646,16 +642,13 @@ class Controller:
     last_status = None
 
     def __init__(self):
+        # CLI to overide settings - must be done before brain is sucked out!
+        self.master_image = False
+        self.agent_image = False
+        self.provision_automatically = True
+
         self.__dict__ = self.__shared_state
 
-    # def set_code_dir(self, code_dir):
-    #     self.code_dir = code_dir
-    #
-    # def set_site_pp(self, site_pp):
-    #     self.site_pp = site_pp
-    #
-    # def set_disable_puppet_on_master(self, disable_puppet_on_master):
-    #     self.disable_puppet_on_master = disable_puppet_on_master
 
     def pe_url(self):
         try:
@@ -969,9 +962,13 @@ class Controller:
 
     def start_agent(self):
         """ start agent container """
+        if self.agent_image:
+            self.logger.info("Using agent image: " + self.agent_image)
+            self.container["agent"]["image_name"] = self.agent_image
+
         return self.start_container(
             self.container["agent"],
-            self.settings.agent_selected_image,
+            self.agent_image or self.settings.agent_selected_image,
             self.code_dir,
             self.site_pp
         )
@@ -980,7 +977,7 @@ class Controller:
         """ Start PE """
         status = self.start_container(
             self.container["master"],
-            self.settings.master_selected_image,
+            self.master_image or self.settings.master_selected_image,
             self.code_dir,
             self.site_pp
         )
@@ -1444,19 +1441,6 @@ class PeKitApp(App):
     __version__ = "v0.6.0"
     error_messages = []
     info_messages = []
-    master_image = False
-    agent_image = False
-    provision_automatically = True
-
-    # def set_code_dir(self, code_dir):
-    #     self.code_dir = code_dir
-    #
-    # def set_site_pp(self, site_pp):
-    #     self.site_pp = site_pp
-    #
-    # def set_disable_puppet_on_master(self, disable_puppet_on_master):
-    #     self.disable_puppet_on_master = disable_puppet_on_master
-
 
     def outdated(self, this_version, upstream_version):
         this = this_version.replace('v', '').split('.')
@@ -1505,12 +1489,14 @@ class PeKitApp(App):
 
 
     def build(self):
+        print "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"
         self.controller = Controller()
         self.controller.code_dir = self.code_dir
         self.controller.site_pp = self.site_pp
         self.controller.disable_puppet_on_master = self.disable_puppet_on_master
         self.controller.master_image = self.master_image
         self.controller.agent_image = self.agent_image
+        print "!!!!!!!!!!!!!!!!!1" + str(self.master_image) + " " + self.site_pp
         self.controller.provision_automatically = self.provision_automatically
         self.controller.start_docker_daemon()
         self.controller.app = self
@@ -1729,7 +1715,7 @@ parser.add_argument("--site-pp", default=False, help="Local file to mount at /et
 parser.add_argument("--disable-puppet-on-master", default=False, action="store_true", help="Disable running puppet on the puppet master")
 parser.add_argument("--master-image", default=False, help="Image to run puppet master with")
 parser.add_argument("--agent-image", default=False, help="Image to run puppet agent node with")
-parser.add_argument("--no-auto-provision", default=False, help="Do not install the puppet agent")
+parser.add_argument("--no-auto-provision", action="store_true", default=False, help="Do not install the puppet agent")
 
 
 args = parser.parse_args()
@@ -1760,7 +1746,8 @@ except KeyboardInterrupt:
     # delete the logfile on succesful exit
     os.unlink(logfile)
 except Exception as e:
-    app.controller.running = False
+    if hasattr(app, 'controller'):
+        app.controller.running = False
     logger.exception(e)
     logger.error(
         "Unknown error (fatal) Error messages saved to logfile {logfile}".format(
