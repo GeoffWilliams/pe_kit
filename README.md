@@ -9,7 +9,7 @@ PE_Kit is a cross-platform (Linux and OSX) tool for demonstrating Puppet Enterpr
 
 ## Images
 
-* PE images exist privately but can't be distributed to the general public.  If your interested, please register for [Docker Hub](https://hub.docker.com/) and [email](mailto:geoff.williams@puppet.com) me your Docker Hub username for access
+* PE images exist privately but can't be distributed to the general public.  If your interested, please register for [Docker Hub](https://hub.docker.com/) and [email](mailto:geoff@declarativesystems.com) me your Docker Hub username for access
 * You can download images from the Image screen (blue crate) by clicking the crate icon next to the image you want.  Unfortunately this takes a while as the images are huge and there is no progress display right now.  After downloading, you need to restart PE_Kit for the images to be usable.
 * For now, the best way to get images is to download on the command line, like this:
 
