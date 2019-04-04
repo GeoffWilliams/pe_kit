@@ -662,7 +662,9 @@ class Controller:
     def bash_cmd(self, cmd):
         """docker exec commands must be wrapped in bash -c or they fail due
         to not being run from the shell"""
-        return "bash -c \"{cmd}\"".format(cmd=cmd)
+
+        # login to get a full bash shell due to puppet enterprise's insane paths
+        return "bash --login -c \"{cmd}\"".format(cmd=cmd)
 
     def fix_hosts_cmd(self):
         return self.bash_cmd("grep {fqdn} /etc/hosts || echo '{pm_ip} {fqdn} {short_name}' >> /etc/hosts".format(
@@ -688,7 +690,7 @@ class Controller:
             self.logger.info("starting download of:  " + image_name)
             self.active_downloads.append(image_name)
             image_name_split = image_name.split(":")
-            for line in self.cli.pull(
+            for line in self.ll_cli.pull(
               repository = image_name_split[0],
               tag = image_name_split[1],
               stream = True,
@@ -1024,6 +1026,13 @@ class Controller:
 
                 if self.onceover_dir:
 
+                    # /testcase
+                    volume_map[os.path.abspath(onceover_dir)] = {
+                        'bind': '/testcase',
+                        'mode': 'ro',
+                    }
+                    volumes.append("/testcase")
+
                     # /etc/puppetlabs/code/environments/production/modules
                     volume_map[os.path.abspath(onceover_dir) + "/.onceover/etc/puppetlabs/code/environments/production/modules"] = {
                         'bind': '/etc/puppetlabs/code/environments/production/modules',
@@ -1086,7 +1095,7 @@ class Controller:
 
                 # security_opt needed to be able to bind mount inside container: https://github.com/moby/moby/issues/16429
                 host_config=self.ll_cli.create_host_config(
-                    cap_add=['SYS_ADMIN', 'SYS_PTRACE'],
+                    cap_add=['SYS_ADMIN', 'SYS_PTRACE', 'NET_ADMIN', 'NET_RAW'],
                     tmpfs={
                         '/tmp:exec': '',
                         '/run':'',
@@ -1206,12 +1215,13 @@ class Controller:
         local_images = []
         if self.cli is not None:
             docker_images = self.ll_cli.images()
-
+            print(docker_images)
             for docker_image in docker_images:
                 if docker_image["RepoTags"]:
-                    image_name = docker_image["RepoTags"][0]
-                    if image_name.startswith(container["image_name"]):
-                        local_images.append(image_name)
+                    # RepoTags contains all the names by which this image is known
+                    for image_alias in docker_image["RepoTags"]:
+                        if image_alias.startswith(container["image_name"]):
+                            local_images.append(image_alias)
             local_images.sort(reverse=True)
 
             # move any 3.8x images to the end of the list otherwise they
@@ -1236,7 +1246,7 @@ class Controller:
 
 
     def docker_hub_image_tags(self, username, password, repo):
-	"""Get the list of tags for a given image on docker hub """
+        """Get the list of tags for a given image on docker hub """
 
         # token
         r = requests.post(
@@ -1249,9 +1259,9 @@ class Controller:
         if r.status_code == requests.codes.ok:
             token = 'JWT ' + r.json()['token']
             r = requests.get(
-            self.settings.hub_address + '/v2/repositories/' + repo + '/tags',
-            headers={'Authorization': token},
-            timeout=5)
+                self.settings.hub_address + '/v2/repositories/' + repo + '/tags',
+                headers={'Authorization': token},
+                timeout=5)
             result = r.json()['results']
         else:
             result = []
@@ -1348,10 +1358,15 @@ class Controller:
         """Provision agent, sign cert, run puppet on agent - AIO"""
         self.logger.info("provisioning agent...")
         self.agent_provision()
+
+        # wait for cert to arrive in puppetserver
+        time.sleep(5)
         self.logger.info("signing agent cert on master...")
-        self.docker_exec(self.container["master"],"puppet cert sign {host}".format(
-            host=self.container["agent"]["host"]
-            ))
+        self.docker_exec(self.container["master"],
+            self.bash_cmd(
+                "puppet cert sign {host} || puppetserver ca sign --certname {host}".format(
+                    host=self.container["agent"]["host"]
+            )))
         self.logger.info("running puppet on agent...")
         self.run_puppet(self.container["agent"])
         self.logger.info("...provisioning complete! :D")
@@ -1447,12 +1462,13 @@ class Controller:
                 cmd = "puppet node purge {host}"
             else:
                 # no PDB..? we can still make reprovision work by doing cert clean...
-                cmd = "puppet cert clean {host}"
+                # run the older PE command and fallback to the newer one if it fails
+                cmd = "puppet cert clean {host} || puppetserver ca clean --certname {host}"
             self.docker_exec(
                 self.container["master"],
-                cmd.format(
+                self.bash_cmd(cmd.format(
                     host=self.container["agent"]["host"]
-                )
+                ))
             )
             master_cleaned = True
 
